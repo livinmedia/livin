@@ -12,7 +12,6 @@ const supabase = createClient(
 )
 
 export default async function HomePage() {
-  // Fetch pilot + active cities
   const { data: cities } = await supabase
     .from('cities')
     .select('name, slug, is_pilot')
@@ -38,7 +37,7 @@ export default async function HomePage() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
             {cities.map((city) => (
-              
+              <a
                 key={city.slug}
                 href={`/${city.slug}`}
                 style={{
