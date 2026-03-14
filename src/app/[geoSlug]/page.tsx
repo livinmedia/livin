@@ -616,7 +616,7 @@ export default async function CityPage({ params }: Props) {
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             {marketMayors.length === 0 && (
-              <a href="#" style={{
+              <a href={`/claim?city=${geoSlug}`} style={{
                 padding: '14px 28px', background: 'var(--lv-orange-grad)',
                 color: '#fff', borderRadius: 'var(--radius-pill)',
                 fontSize: '15px', fontWeight: 600,
@@ -625,7 +625,7 @@ export default async function CityPage({ params }: Props) {
                 Apply as Market Mayor →
               </a>
             )}
-            <a href="#" style={{
+            <a href="/claim" style={{
               padding: '14px 28px', background: '#fff',
               color: 'var(--lv-black)', border: '1px solid var(--lv-border)',
               borderRadius: 'var(--radius-pill)', fontSize: '15px', fontWeight: 500,

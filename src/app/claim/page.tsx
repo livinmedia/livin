@@ -1,562 +1,388 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useEffect, useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
+import Nav from '@/components/Nav'
+import Footer from '@/components/Footer'
 
-// ── Styles ──
-const NAVY = "#0f172a";
-const DARK = "#1e293b";
-const CARD = "rgba(255,255,255,0.04)";
-const BORDER = "rgba(255,255,255,0.08)";
-const GOLD = "#d4a843";
-const TEXT = "rgba(255,255,255,0.85)";
-const TEXT_DIM = "rgba(255,255,255,0.45)";
-
-interface City {
-  id: string;
-  name: string;
-  slug: string;
-  population: number | null;
-  mm_tier: string | null;
-  mm_price_monthly: number | null;
-  mm_claimed: boolean;
-  mm_waitlist_count: number | null;
-  states_regions: { name: string; abbreviation: string } | null;
-}
-
-const tierConfig: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  premium: { label: "Premium", color: "#d4a843", bg: "rgba(212,168,67,0.12)", icon: "👑" },
-  standard: { label: "Standard", color: "#94a3b8", bg: "rgba(148,163,184,0.10)", icon: "⭐" },
-  small_market: { label: "Small Market", color: "#cd7f32", bg: "rgba(205,127,50,0.10)", icon: "🏅" },
-};
-
-function formatPop(n: number | null) {
-  if (!n) return "—";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toString();
-}
-
-function formatPrice(n: number | null) {
-  if (!n) return "—";
-  return `$${n.toLocaleString()}/mo`;
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function ClaimPage() {
-  const [cities, setCities] = useState<City[]>([]);
-  const [search, setSearch] = useState("");
-  const [tierFilter, setTierFilter] = useState("");
-  const [showAvailableOnly, setShowAvailableOnly] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [states, setStates] = useState<any[]>([])
+  const [cities, setCities] = useState<any[]>([])
+  const [selectedState, setSelectedState] = useState<string | null>(null)
+  const [selectedCity, setSelectedCity] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', license: '', message: '' })
+  const [submitted, setSubmitted] = useState(false)
 
+  // Check URL params for direct linking from city pages
   useEffect(() => {
-    fetchCities();
-  }, [tierFilter, showAvailableOnly]);
+    const params = new URLSearchParams(window.location.search)
+    const citySlug = params.get('city')
+    if (citySlug) {
+      loadCityDirect(citySlug)
+    }
+    loadStates()
+  }, [])
 
-  async function fetchCities() {
-    setLoading(true);
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    if (tierFilter) params.set("tier", tierFilter);
-    if (showAvailableOnly) params.set("available", "true");
-
-    const res = await fetch(`/api/claim?${params}`);
-    const data = await res.json();
-    setCities(data.cities || []);
-    setLoading(false);
+  async function loadStates() {
+    const { data } = await supabase
+      .from('states_regions')
+      .select('id, name, abbreviation, slug')
+      .eq('is_active', true)
+      .order('name')
+    setStates(data || [])
+    setLoading(false)
   }
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    fetchCities();
+  async function loadCityDirect(slug: string) {
+    const { data: city } = await supabase
+      .from('cities')
+      .select('id, name, slug, population, has_market_mayor, state_region_id, metadata')
+      .eq('slug', slug)
+      .single()
+    if (city) {
+      setSelectedCity(city)
+      const { data: state } = await supabase
+        .from('states_regions')
+        .select('id, name, abbreviation')
+        .eq('id', city.state_region_id)
+        .single()
+      if (state) setSelectedState(state.id)
+    }
   }
 
-  const available = cities.filter((c) => !c.mm_claimed);
-  const claimed = cities.filter((c) => c.mm_claimed);
+  async function selectState(stateId: string) {
+    setSelectedState(stateId)
+    setSelectedCity(null)
+    const { data } = await supabase
+      .from('cities')
+      .select('id, name, slug, population, has_market_mayor, state_region_id, metadata')
+      .eq('state_region_id', stateId)
+      .eq('is_active', true)
+      .order('name')
+    setCities(data || [])
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedCity) return
+
+    // Insert as a lead with type 'general' and intent for MM application
+    await supabase.from('leads').insert({
+      city_id: selectedCity.id,
+      source_brand: 'livin',
+      destination_brand: 'homes_and_livin',
+      lead_type: 'general',
+      contact_name: formData.name,
+      contact_email: formData.email,
+      contact_phone: formData.phone,
+      status: 'new',
+      quality_score: 8,
+      intent_signals: {
+        type: 'mm_application',
+        license_number: formData.license,
+        message: formData.message,
+        city_slug: selectedCity.slug,
+        city_name: selectedCity.name,
+      },
+      source_url: window.location.href,
+    })
+
+    setSubmitted(true)
+  }
+
+  const selectedStateName = states.find(s => s.id === selectedState)?.name || ''
+  const selectedStateAbbr = states.find(s => s.id === selectedState)?.abbreviation || ''
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: `linear-gradient(180deg, ${NAVY} 0%, #0c1220 100%)`,
-        color: TEXT,
-        fontFamily: "'Outfit', system-ui, sans-serif",
-      }}
-    >
-      {/* ── Nav ── */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px clamp(16px, 4vw, 48px)",
-          borderBottom: `1px solid ${BORDER}`,
-        }}
-      >
-        <Link href="/" style={{ fontSize: 24, fontWeight: 800, letterSpacing: "0.08em", color: "#fff" }}>
-          LIVIN
-        </Link>
-        <Link
-          href="/login"
-          style={{
-            padding: "10px 20px",
-            minHeight: 44,
-            background: "rgba(255,255,255,0.06)",
-            border: `1px solid ${BORDER}`,
-            borderRadius: 8,
-            color: TEXT_DIM,
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
-          MM Login
-        </Link>
-      </header>
+    <>
+      <Nav />
 
-      {/* ── Hero ── */}
-      <section
-        style={{
-          padding: "clamp(48px, 8vw, 96px) clamp(16px, 4vw, 48px) clamp(32px, 4vw, 64px)",
-          textAlign: "center",
-          maxWidth: 800,
-          margin: "0 auto",
-        }}
-      >
-        <div
-          style={{
-            display: "inline-block",
-            padding: "6px 16px",
-            background: "rgba(212,168,67,0.12)",
-            border: "1px solid rgba(212,168,67,0.25)",
-            borderRadius: 100,
-            fontSize: 12,
-            fontWeight: 600,
-            color: GOLD,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            marginBottom: 24,
-          }}
-        >
-          By Invitation &amp; Application Only
-        </div>
-        <h1
-          style={{
-            fontSize: "clamp(32px, 6vw, 56px)",
-            fontWeight: 300,
-            lineHeight: 1.15,
-            fontFamily: "'Libre Caslon Display', Georgia, serif",
-            color: "#fff",
-            marginBottom: 16,
-          }}
-        >
-          Claim Your City
-        </h1>
-        <p
-          style={{
-            fontSize: "clamp(16px, 2vw, 20px)",
-            color: TEXT_DIM,
-            lineHeight: 1.6,
-            maxWidth: 600,
-            margin: "0 auto 40px",
-          }}
-        >
-          Become the exclusive Market Mayor for your city. Own the real estate content,
-          build your brand, and connect with the community you know best.
-        </p>
-      </section>
+      {/* Hero */}
+      <section style={{
+        position: 'relative', overflow: 'hidden',
+        padding: 'clamp(48px, 6vw, 80px) 0 clamp(40px, 5vw, 60px)',
+      }}>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'var(--lv-warm-bg)', opacity: 0.5,
+        }} />
+        <div className="lv-container" style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+          <div style={{
+            display: 'inline-flex', padding: '5px 16px',
+            background: '#fff', border: '1px solid var(--lv-border)',
+            borderRadius: 'var(--radius-pill)', marginBottom: '20px',
+            fontSize: '12px', fontWeight: 600, color: 'var(--lv-orange)',
+          }}>
+            103 cities available
+          </div>
 
-      {/* ── Anthony Dazet Section ── */}
-      <section
-        style={{
-          maxWidth: 900,
-          margin: "0 auto 48px",
-          padding: "0 clamp(16px, 4vw, 48px)",
-        }}
-      >
-        <div
-          style={{
-            background: "linear-gradient(135deg, rgba(212,168,67,0.08) 0%, rgba(212,168,67,0.02) 100%)",
-            border: "1px solid rgba(212,168,67,0.15)",
-            borderRadius: 16,
-            padding: "clamp(24px, 4vw, 40px)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 20,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: "50%",
-                background: `linear-gradient(135deg, ${GOLD}, #b8922e)`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 28,
-                fontWeight: 800,
-                color: NAVY,
-                flexShrink: 0,
-              }}
-            >
-              AD
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>Anthony Dazet</div>
-              <div style={{ fontSize: 13, color: GOLD }}>Founder, LIVIN</div>
-            </div>
-          </div>
-          <div style={{ fontSize: 15, lineHeight: 1.7, color: "rgba(255,255,255,0.7)" }}>
-            &ldquo;Market Mayor isn&apos;t a title — it&apos;s a calling. We&apos;re looking for real estate professionals who
-            don&apos;t just sell homes, but who truly <em>live</em> their city. People who know the best taco truck,
-            the hidden park, the neighborhood that&apos;s about to bloom. Every application is reviewed personally
-            by me. This isn&apos;t a franchise — it&apos;s a partnership. One mayor per city, forever.&rdquo;
-          </div>
-          <div style={{ display: "flex", gap: 24, flexWrap: "wrap", fontSize: 13, color: TEXT_DIM }}>
-            <span>✦ One exclusive mayor per city</span>
-            <span>✦ Personal review of every application</span>
-            <span>✦ AI-powered content engine included</span>
-          </div>
+          <h1 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(32px, 4.5vw, 52px)',
+            color: 'var(--lv-black)', lineHeight: 1.08,
+            letterSpacing: '-0.03em', marginBottom: '14px',
+          }}>
+            Claim your{' '}
+            <span style={{
+              fontStyle: 'italic',
+              background: 'var(--lv-orange-grad)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>city</span>
+          </h1>
+
+          <p style={{
+            fontSize: 'clamp(15px, 1.8vw, 18px)', fontWeight: 300,
+            color: 'var(--lv-text-muted)', lineHeight: 1.6,
+            maxWidth: '520px', margin: '0 auto',
+          }}>
+            Become a LIVIN Market Mayor — the licensed real estate professional who leads
+            your city on the platform. Select your state, choose your city, and apply.
+          </p>
         </div>
       </section>
 
-      {/* ── How It Works ── */}
-      <section
-        style={{
-          maxWidth: 900,
-          margin: "0 auto 48px",
-          padding: "0 clamp(16px, 4vw, 48px)",
-        }}
-      >
-        <h2
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-            color: TEXT_DIM,
-            marginBottom: 24,
-          }}
-        >
-          How It Works
-        </h2>
-        <div className="lv-grid-3" style={{ gap: 16 }}>
-          {[
-            { step: "01", title: "Browse & Apply", desc: "Find your city below. Submit your application with your credentials and vision." },
-            { step: "02", title: "Personal Review", desc: "Anthony reviews every application. We look for local expertise, content vision, and community commitment." },
-            { step: "03", title: "Launch & Lead", desc: "Once approved, your AI content engine activates. You approve content, build your brand, and own your market." },
-          ].map((s) => (
-            <div
-              key={s.step}
-              style={{
-                background: CARD,
-                border: `1px solid ${BORDER}`,
-                borderRadius: 12,
-                padding: "clamp(20px, 3vw, 28px)",
-              }}
-            >
-              <div style={{ fontSize: 32, fontWeight: 800, color: "rgba(212,168,67,0.2)", marginBottom: 8 }}>
-                {s.step}
+      {/* Main content */}
+      <section style={{ padding: 'clamp(24px, 4vw, 48px) 0 clamp(48px, 6vw, 80px)', background: 'var(--lv-white)' }}>
+        <div className="lv-container">
+          {submitted ? (
+            /* Success state */
+            <div style={{
+              maxWidth: '520px', margin: '0 auto', textAlign: 'center',
+              padding: '48px 32px', background: 'var(--lv-cream)',
+              borderRadius: '18px',
+            }}>
+              <div style={{
+                width: '60px', height: '60px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, #22C580, #2AB7A9)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 20px', fontSize: '28px', color: '#fff',
+              }}>✓</div>
+              <h2 style={{
+                fontFamily: 'var(--font-display)', fontSize: '28px',
+                color: 'var(--lv-black)', marginBottom: '10px',
+              }}>Application submitted</h2>
+              <p style={{ fontSize: '15px', color: 'var(--lv-text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
+                Thank you for applying to be the Market Mayor of {selectedCity?.name}.
+                We will review your application and get back to you within 48 hours.
+              </p>
+              <a href="/" style={{
+                display: 'inline-flex', padding: '12px 28px',
+                background: 'var(--lv-orange-grad)', color: '#fff',
+                borderRadius: 'var(--radius-pill)', fontSize: '15px', fontWeight: 600,
+                textDecoration: 'none',
+              }}>
+                Back to LIVIN →
+              </a>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', alignItems: 'flex-start' }}>
+              {/* Left — State & City selection */}
+              <div>
+                <h2 style={{
+                  fontFamily: 'var(--font-display)', fontSize: '22px',
+                  color: 'var(--lv-black)', marginBottom: '16px',
+                }}>
+                  {!selectedState ? 'Select your state' : !selectedCity ? `Cities in ${selectedStateName}` : 'Your city'}
+                </h2>
+
+                {/* State grid */}
+                {!selectedState && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    {states.map(state => (
+                      <button key={state.id} onClick={() => selectState(state.id)} style={{
+                        padding: '12px 14px', background: '#fff',
+                        border: '1px solid var(--lv-border)', borderRadius: '12px',
+                        textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.2s',
+                        fontSize: '14px', fontWeight: 500, color: 'var(--lv-black)',
+                      }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--lv-orange)', marginRight: '6px' }}>
+                          {state.abbreviation}
+                        </span>
+                        {state.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* City list for selected state */}
+                {selectedState && !selectedCity && (
+                  <>
+                    <button onClick={() => { setSelectedState(null); setCities([]) }} style={{
+                      padding: '6px 14px', background: 'var(--lv-cream)',
+                      border: 'none', borderRadius: 'var(--radius-pill)',
+                      fontSize: '12px', color: 'var(--lv-text-muted)', cursor: 'pointer',
+                      marginBottom: '14px',
+                    }}>
+                      ← Back to states
+                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {cities.map(city => (
+                        <button key={city.id} onClick={() => !city.has_market_mayor && setSelectedCity(city)} style={{
+                          padding: '16px 18px', background: '#fff',
+                          border: `1px solid ${city.has_market_mayor ? '#A7F3D0' : 'var(--lv-border)'}`,
+                          borderRadius: '14px', textAlign: 'left',
+                          cursor: city.has_market_mayor ? 'not-allowed' : 'pointer',
+                          opacity: city.has_market_mayor ? 0.7 : 1,
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        }}>
+                          <div>
+                            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--lv-black)', marginBottom: '2px' }}>
+                              {city.name}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--lv-text-muted)' }}>
+                              {city.population ? `Pop. ${city.population.toLocaleString()}` : selectedStateName}
+                            </div>
+                          </div>
+                          <span style={{
+                            fontSize: '11px', fontWeight: 600, padding: '4px 14px',
+                            borderRadius: 'var(--radius-pill)',
+                            background: city.has_market_mayor ? '#ECFDF5' : '#FFF5ED',
+                            color: city.has_market_mayor ? '#22C580' : '#E85D2A',
+                          }}>
+                            {city.has_market_mayor ? 'Claimed' : 'Available'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Selected city confirmation */}
+                {selectedCity && (
+                  <>
+                    <button onClick={() => setSelectedCity(null)} style={{
+                      padding: '6px 14px', background: 'var(--lv-cream)',
+                      border: 'none', borderRadius: 'var(--radius-pill)',
+                      fontSize: '12px', color: 'var(--lv-text-muted)', cursor: 'pointer',
+                      marginBottom: '14px',
+                    }}>
+                      ← Choose different city
+                    </button>
+                    <div style={{
+                      padding: '24px', background: 'var(--lv-cream)',
+                      borderRadius: '16px', border: '1px solid var(--lv-border)',
+                    }}>
+                      <div style={{
+                        height: '120px', borderRadius: '12px', marginBottom: '16px',
+                        background: selectedCity.metadata?.hero_image_url
+                          ? `linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.4) 100%), url(${selectedCity.metadata.hero_image_url}) center/cover`
+                          : 'linear-gradient(135deg, #FF9A5C, #E85D2A)',
+                        display: 'flex', alignItems: 'flex-end', padding: '14px',
+                      }}>
+                        <div style={{
+                          fontFamily: 'var(--font-display)', fontSize: '24px', color: '#fff',
+                        }}>
+                          {selectedCity.name}
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div style={{ textAlign: 'center', padding: '12px', background: '#fff', borderRadius: '10px' }}>
+                          <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--lv-black)' }}>
+                            {selectedCity.population ? selectedCity.population.toLocaleString() : '—'}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--lv-text-muted)' }}>Population</div>
+                        </div>
+                        <div style={{ textAlign: 'center', padding: '12px', background: '#fff', borderRadius: '10px' }}>
+                          <div style={{ fontSize: '18px', fontWeight: 700, color: '#E85D2A' }}>Open</div>
+                          <div style={{ fontSize: '11px', color: 'var(--lv-text-muted)' }}>MM Status</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 8 }}>{s.title}</div>
-              <div style={{ fontSize: 14, color: TEXT_DIM, lineHeight: 1.6 }}>{s.desc}</div>
+
+              {/* Right — Application form */}
+              <div style={{
+                padding: '28px', background: '#fff',
+                border: '1px solid var(--lv-border)', borderRadius: '18px',
+                position: 'sticky', top: '80px',
+              }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lv-orange)', marginBottom: '8px' }}>
+                  Apply as Market Mayor
+                </div>
+                <h3 style={{
+                  fontFamily: 'var(--font-display)', fontSize: '20px',
+                  color: 'var(--lv-black)', marginBottom: '6px',
+                }}>
+                  {selectedCity ? `Lead ${selectedCity.name}` : 'Select a city to apply'}
+                </h3>
+                <p style={{ fontSize: '13px', color: 'var(--lv-text-muted)', marginBottom: '20px', lineHeight: 1.5 }}>
+                  Market Mayors are licensed real estate professionals who curate the LIVIN experience for their city.
+                </p>
+
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input type="text" placeholder="Full name" required value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    style={{
+                      padding: '14px 18px', background: 'var(--lv-cream)',
+                      border: '1px solid var(--lv-border)', borderRadius: '12px',
+                      fontSize: '14px', color: 'var(--lv-black)', outline: 'none',
+                    }}
+                  />
+                  <input type="email" placeholder="Email" required value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    style={{
+                      padding: '14px 18px', background: 'var(--lv-cream)',
+                      border: '1px solid var(--lv-border)', borderRadius: '12px',
+                      fontSize: '14px', color: 'var(--lv-black)', outline: 'none',
+                    }}
+                  />
+                  <input type="tel" placeholder="Phone" value={formData.phone}
+                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                    style={{
+                      padding: '14px 18px', background: 'var(--lv-cream)',
+                      border: '1px solid var(--lv-border)', borderRadius: '12px',
+                      fontSize: '14px', color: 'var(--lv-black)', outline: 'none',
+                    }}
+                  />
+                  <input type="text" placeholder="Real estate license #" value={formData.license}
+                    onChange={e => setFormData({ ...formData, license: e.target.value })}
+                    style={{
+                      padding: '14px 18px', background: 'var(--lv-cream)',
+                      border: '1px solid var(--lv-border)', borderRadius: '12px',
+                      fontSize: '14px', color: 'var(--lv-black)', outline: 'none',
+                    }}
+                  />
+                  <textarea placeholder="Why do you want to lead this city?" rows={3} value={formData.message}
+                    onChange={e => setFormData({ ...formData, message: e.target.value })}
+                    style={{
+                      padding: '14px 18px', background: 'var(--lv-cream)',
+                      border: '1px solid var(--lv-border)', borderRadius: '12px',
+                      fontSize: '14px', color: 'var(--lv-black)', outline: 'none',
+                      resize: 'vertical', fontFamily: 'var(--font-body)',
+                    }}
+                  />
+                  <button type="submit" disabled={!selectedCity} style={{
+                    padding: '16px',
+                    background: selectedCity ? 'linear-gradient(135deg, #FF8C3C, #E85D2A)' : '#ddd',
+                    color: '#fff', border: 'none', borderRadius: 'var(--radius-pill)',
+                    fontSize: '16px', fontWeight: 600,
+                    cursor: selectedCity ? 'pointer' : 'not-allowed',
+                    boxShadow: selectedCity ? '0 4px 20px rgba(232,93,42,0.25)' : 'none',
+                  }}>
+                    {selectedCity ? `Apply for ${selectedCity.name} →` : 'Select a city first'}
+                  </button>
+                </form>
+
+                <p style={{ fontSize: '11px', color: 'var(--lv-text-light)', marginTop: '12px', lineHeight: 1.4, textAlign: 'center' }}>
+                  By applying, you agree to the LIVIN Market Mayor terms. We review all applications within 48 hours.
+                </p>
+              </div>
             </div>
-          ))}
+          )}
         </div>
       </section>
 
-      {/* ── Tier Legend ── */}
-      <section
-        style={{
-          maxWidth: 900,
-          margin: "0 auto 32px",
-          padding: "0 clamp(16px, 4vw, 48px)",
-        }}
-      >
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {Object.entries(tierConfig).map(([key, t]) => (
-            <div
-              key={key}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 16px",
-                background: t.bg,
-                border: `1px solid ${t.color}22`,
-                borderRadius: 8,
-                fontSize: 13,
-                color: t.color,
-                fontWeight: 600,
-              }}
-            >
-              <span>{t.icon}</span>
-              <span>{t.label}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Search & Filters ── */}
-      <section
-        style={{
-          maxWidth: 900,
-          margin: "0 auto 32px",
-          padding: "0 clamp(16px, 4vw, 48px)",
-        }}
-      >
-        <form onSubmit={handleSearch} style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search cities..."
-            style={{
-              flex: "1 1 200px",
-              padding: "12px 16px",
-              background: "rgba(255,255,255,0.06)",
-              border: `1px solid ${BORDER}`,
-              borderRadius: 8,
-              color: "#fff",
-              fontSize: 16,
-              outline: "none",
-              minHeight: 48,
-            }}
-          />
-          <button
-            type="submit"
-            style={{
-              padding: "12px 24px",
-              minHeight: 48,
-              background: `linear-gradient(135deg, ${GOLD}, #b8922e)`,
-              border: "none",
-              borderRadius: 8,
-              color: NAVY,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Search
-          </button>
-        </form>
-
-        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-          {[
-            { value: "", label: "All Tiers" },
-            { value: "premium", label: "👑 Premium" },
-            { value: "standard", label: "⭐ Standard" },
-            { value: "small_market", label: "🏅 Small Market" },
-          ].map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setTierFilter(f.value)}
-              style={{
-                padding: "8px 16px",
-                minHeight: 44,
-                background: tierFilter === f.value ? "rgba(212,168,67,0.15)" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${tierFilter === f.value ? "rgba(212,168,67,0.3)" : BORDER}`,
-                borderRadius: 8,
-                color: tierFilter === f.value ? GOLD : TEXT_DIM,
-                fontSize: 13,
-                fontWeight: tierFilter === f.value ? 600 : 400,
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
-          <button
-            onClick={() => setShowAvailableOnly(!showAvailableOnly)}
-            style={{
-              padding: "8px 16px",
-              minHeight: 44,
-              background: showAvailableOnly ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.04)",
-              border: `1px solid ${showAvailableOnly ? "rgba(34,197,94,0.3)" : BORDER}`,
-              borderRadius: 8,
-              color: showAvailableOnly ? "#22c55e" : TEXT_DIM,
-              fontSize: 13,
-              fontWeight: showAvailableOnly ? 600 : 400,
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-          >
-            Available Only
-          </button>
-        </div>
-      </section>
-
-      {/* ── City Grid ── */}
-      <section
-        style={{
-          maxWidth: 900,
-          margin: "0 auto",
-          padding: "0 clamp(16px, 4vw, 48px) 96px",
-        }}
-      >
-        {loading ? (
-          <div style={{ textAlign: "center", padding: 48, color: TEXT_DIM }}>Loading cities...</div>
-        ) : cities.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 48, color: TEXT_DIM }}>
-            No cities found. Try a different search or filter.
-          </div>
-        ) : (
-          <>
-            {/* Available cities */}
-            {available.length > 0 && (
-              <>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                    color: "#22c55e",
-                    marginBottom: 16,
-                  }}
-                >
-                  Available — {available.length} {available.length === 1 ? "City" : "Cities"}
-                </div>
-                <div className="lv-grid-2" style={{ gap: 16, marginBottom: 40 }}>
-                  {available.map((city) => (
-                    <CityCard key={city.id} city={city} />
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Claimed cities */}
-            {claimed.length > 0 && !showAvailableOnly && (
-              <>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                    color: TEXT_DIM,
-                    marginBottom: 16,
-                  }}
-                >
-                  Claimed — {claimed.length} {claimed.length === 1 ? "City" : "Cities"}
-                </div>
-                <div className="lv-grid-2" style={{ gap: 16 }}>
-                  {claimed.map((city) => (
-                    <CityCard key={city.id} city={city} />
-                  ))}
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function CityCard({ city }: { city: City }) {
-  const tier = tierConfig[city.mm_tier || "standard"] || tierConfig.standard;
-  const isClaimed = city.mm_claimed;
-  const state = city.states_regions?.abbreviation || "";
-
-  return (
-    <div
-      style={{
-        background: CARD,
-        border: `1px solid ${isClaimed ? BORDER : "rgba(212,168,67,0.12)"}`,
-        borderRadius: 12,
-        padding: "clamp(16px, 3vw, 24px)",
-        opacity: isClaimed ? 0.65 : 1,
-        transition: "all 0.2s",
-      }}
-    >
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-        <div>
-          <div style={{ fontSize: "clamp(18px, 2.5vw, 22px)", fontWeight: 700, color: "#fff" }}>
-            {city.name}
-          </div>
-          <div style={{ fontSize: 13, color: TEXT_DIM }}>
-            {state} · Pop. {formatPop(city.population)}
-          </div>
-        </div>
-        <span
-          style={{
-            padding: "4px 10px",
-            background: tier.bg,
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 600,
-            color: tier.color,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {tier.icon} {tier.label}
-        </span>
-      </div>
-
-      {/* Price */}
-      <div style={{ fontSize: 24, fontWeight: 700, color: isClaimed ? TEXT_DIM : GOLD, marginBottom: 16 }}>
-        {formatPrice(city.mm_price_monthly)}
-      </div>
-
-      {/* Status & CTA */}
-      {isClaimed ? (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <span
-            style={{
-              padding: "6px 12px",
-              background: "rgba(239,68,68,0.1)",
-              border: "1px solid rgba(239,68,68,0.2)",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              color: "#ef4444",
-            }}
-          >
-            Claimed
-          </span>
-          <Link
-            href={`/claim/waitlist/${city.slug}`}
-            style={{
-              padding: "10px 20px",
-              minHeight: 44,
-              background: "rgba(255,255,255,0.06)",
-              border: `1px solid ${BORDER}`,
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              color: TEXT_DIM,
-              display: "inline-flex",
-              alignItems: "center",
-            }}
-          >
-            Join Waitlist{city.mm_waitlist_count ? ` (${city.mm_waitlist_count})` : ""}
-          </Link>
-        </div>
-      ) : (
-        <Link
-          href={`/claim/apply/${city.slug}`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "12px 24px",
-            minHeight: 48,
-            background: `linear-gradient(135deg, ${GOLD}, #b8922e)`,
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 700,
-            color: NAVY,
-            width: "100%",
-            transition: "all 0.2s",
-          }}
-        >
-          Apply Now →
-        </Link>
-      )}
-    </div>
-  );
+      <Footer />
+    </>
+  )
 }
