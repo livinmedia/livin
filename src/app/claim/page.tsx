@@ -168,35 +168,6 @@ Keep responses under 3 sentences per message. Be concise and engaging.`,
     setInterviewLoading(false)
   }
 
-  // ── Input helper ──
-  function Input({ label, value, onChange, placeholder, type = 'text', required = false }: any) {
-    return (
-      <div style={{ marginBottom: '14px' }}>
-        <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#999', marginBottom: '6px' }}>
-          {label} {required && <span style={{ color: '#E85D2A' }}>*</span>}
-        </label>
-        <input type={type} value={value} onChange={onChange} placeholder={placeholder} required={required}
-          style={{ width: '100%', padding: '12px 16px', background: '#F9F7F3', border: '1px solid #EEEAE4', borderRadius: '10px', fontSize: '14px', color: '#1a1a1a', outline: 'none', boxSizing: 'border-box' }}
-          onFocus={e => e.target.style.borderColor = '#E85D2A'}
-          onBlur={e => e.target.style.borderColor = '#EEEAE4'}
-        />
-      </div>
-    )
-  }
-
-  function TextArea({ label, value, onChange, placeholder, rows = 3 }: any) {
-    return (
-      <div style={{ marginBottom: '14px' }}>
-        <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#999', marginBottom: '6px' }}>{label}</label>
-        <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows}
-          style={{ width: '100%', padding: '12px 16px', background: '#F9F7F3', border: '1px solid #EEEAE4', borderRadius: '10px', fontSize: '14px', color: '#1a1a1a', outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
-          onFocus={e => e.target.style.borderColor = '#E85D2A'}
-          onBlur={e => e.target.style.borderColor = '#EEEAE4'}
-        />
-      </div>
-    )
-  }
-
   return (
     <>
       <Nav />
@@ -592,5 +563,35 @@ Keep responses under 3 sentences per message. Be concise and engaging.`,
       </div>
       <Footer />
     </>
+  )
+}
+
+// ── Input helpers (defined outside ClaimPage to avoid re-mount on state change) ──
+
+function Input({ label, value, onChange, placeholder, type = 'text', required = false }: any) {
+  return (
+    <div style={{ marginBottom: '14px' }}>
+      <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#999', marginBottom: '6px' }}>
+        {label} {required && <span style={{ color: '#E85D2A' }}>*</span>}
+      </label>
+      <input type={type} value={value} onChange={onChange} placeholder={placeholder} required={required}
+        style={{ width: '100%', padding: '12px 16px', background: '#F9F7F3', border: '1px solid #EEEAE4', borderRadius: '10px', fontSize: '14px', color: '#1a1a1a', outline: 'none', boxSizing: 'border-box' }}
+        onFocus={e => e.target.style.borderColor = '#E85D2A'}
+        onBlur={e => e.target.style.borderColor = '#EEEAE4'}
+      />
+    </div>
+  )
+}
+
+function TextArea({ label, value, onChange, placeholder, rows = 3 }: any) {
+  return (
+    <div style={{ marginBottom: '14px' }}>
+      <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#999', marginBottom: '6px' }}>{label}</label>
+      <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows}
+        style={{ width: '100%', padding: '12px 16px', background: '#F9F7F3', border: '1px solid #EEEAE4', borderRadius: '10px', fontSize: '14px', color: '#1a1a1a', outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+        onFocus={e => e.target.style.borderColor = '#E85D2A'}
+        onBlur={e => e.target.style.borderColor = '#EEEAE4'}
+      />
+    </div>
   )
 }
