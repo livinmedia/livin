@@ -516,9 +516,9 @@ export default async function CityPage({ params }: Props) {
 
                       <a href="#" style={{
                         display: 'inline-flex', alignItems: 'center', gap: '6px',
-                        padding: '10px 24px', background: 'var(--lv-orange-grad)',
+                        padding: '12px 24px', minHeight: 44, background: 'var(--lv-orange-grad)',
                         color: '#fff', borderRadius: 'var(--radius-pill)',
-                        fontSize: '13px', fontWeight: 600,
+                        fontSize: '14px', fontWeight: 600,
                         boxShadow: '0 4px 16px rgba(232,93,42,0.2)',
                       }}>
                         Contact {firstName} →
@@ -584,7 +584,8 @@ export default async function CityPage({ params }: Props) {
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             {marketMayors.length === 0 && (
               <a href="#" style={{
-                padding: '14px 28px', background: 'var(--lv-orange-grad)',
+                display: 'inline-flex', alignItems: 'center',
+                padding: '14px 28px', minHeight: 48, background: 'var(--lv-orange-grad)',
                 color: '#fff', borderRadius: 'var(--radius-pill)',
                 fontSize: '15px', fontWeight: 600,
                 boxShadow: '0 4px 20px rgba(232,93,42,0.2)',
@@ -593,7 +594,8 @@ export default async function CityPage({ params }: Props) {
               </a>
             )}
             <a href="#" style={{
-              padding: '14px 28px', background: '#fff',
+              display: 'inline-flex', alignItems: 'center',
+              padding: '14px 28px', minHeight: 48, background: '#fff',
               color: 'var(--lv-black)', border: '1px solid var(--lv-border)',
               borderRadius: 'var(--radius-pill)', fontSize: '15px', fontWeight: 500,
             }}>

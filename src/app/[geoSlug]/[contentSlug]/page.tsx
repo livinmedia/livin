@@ -243,9 +243,9 @@ export default async function ArticlePage({ params }: Props) {
             <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
               {['Share', 'Save'].map(action => (
                 <button key={action} style={{
-                  padding: '6px 14px', background: '#fff',
+                  padding: '8px 16px', minHeight: 44, background: '#fff',
                   border: '1px solid var(--lv-border)', borderRadius: 'var(--radius-pill)',
-                  fontSize: '12px', fontWeight: 500, color: 'var(--lv-text-muted)',
+                  fontSize: '13px', fontWeight: 500, color: 'var(--lv-text-muted)',
                   cursor: 'pointer',
                 }}>
                   {action}
@@ -466,9 +466,9 @@ export default async function ArticlePage({ params }: Props) {
               </div>
               <a href="#" style={{
                 display: 'block', textAlign: 'center',
-                padding: '10px', background: 'var(--lv-orange-grad)',
+                padding: '12px', minHeight: 44, background: 'var(--lv-orange-grad)',
                 color: '#fff', borderRadius: 'var(--radius-pill)',
-                fontSize: '13px', fontWeight: 600,
+                fontSize: '14px', fontWeight: 600,
               }}>
                 Contact {mmProfile.full_name?.split(' ')[0]} →
               </a>

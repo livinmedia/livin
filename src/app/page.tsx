@@ -202,6 +202,7 @@ export default async function HomePage() {
                   alignItems: 'center',
                   gap: '8px',
                   padding: '14px 28px',
+                  minHeight: 48,
                   background: 'var(--lv-orange-grad)',
                   color: '#fff',
                   borderRadius: 'var(--radius-pill)',
@@ -216,6 +217,7 @@ export default async function HomePage() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   padding: '14px 28px',
+                  minHeight: 48,
                   background: '#fff',
                   color: 'var(--lv-black)',
                   border: '1px solid var(--lv-border)',
@@ -362,6 +364,10 @@ export default async function HomePage() {
           {cityCount > 6 && (
             <div style={{ textAlign: 'center', marginTop: '24px' }}>
               <a href="#" style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '10px 16px',
+                minHeight: 44,
                 fontSize: '14px',
                 fontWeight: 500,
                 color: 'var(--lv-orange)',

@@ -71,11 +71,12 @@ function FooterCol({ title, links }: { title: string; links: string[] }) {
       {links.map(link => (
         <a key={link} href="#" style={{
           display: 'block',
-          fontSize: '13px',
+          fontSize: '14px',
           fontWeight: 400,
           color: 'var(--lv-text-muted)',
-          marginBottom: '8px',
-          padding: '4px 0',
+          marginBottom: '4px',
+          padding: '8px 0',
+          minHeight: 44,
         }}>
           {link}
         </a>
