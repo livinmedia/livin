@@ -163,17 +163,33 @@ export default async function CityPage({ params }: Props) {
       <Nav />
 
       {/* ═══════════════════════════════════════════════
-          HERO — Hot topics instead of boring stats
+          HERO — Hot topics with city hero image
           ═══════════════════════════════════════════════ */}
       <section style={{
         position: 'relative',
         overflow: 'hidden',
         padding: 'clamp(40px, 5vw, 64px) 0 clamp(32px, 4vw, 48px)',
       }}>
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'var(--lv-warm-bg)', opacity: 0.5,
-        }} />
+        {/* Hero background image or gradient fallback */}
+        {(city.metadata as any)?.hero_image_url ? (
+          <>
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: `url(${(city.metadata as any).hero_image_url})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center 30%',
+            }} />
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.92) 60%, rgba(255,255,255,0.98) 100%)',
+            }} />
+          </>
+        ) : (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'var(--lv-warm-bg)', opacity: 0.5,
+          }} />
+        )}
         <div className="lv-container" style={{ position: 'relative', zIndex: 1 }}>
           {/* Breadcrumb */}
           <div style={{

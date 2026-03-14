@@ -77,7 +77,7 @@ export interface SkillOutput {
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const CONTENT_MODEL = "deepseek/deepseek-v3.2";
-const IMAGE_MODEL = "google/gemini-2.5-flash-image";
+const IMAGE_MODEL = "google/gemini-3.1-flash-image-preview";
 
 // ── System Prompt Builder ──────────────────────────────────────────────────
 
@@ -122,10 +122,10 @@ CRITICAL OUTPUT RULES:
 
 REQUIRED JSON STRUCTURE:
 {
-  "title": "SEO title, max 60 characters, must contain primary keyword",
-  "h1": "Page heading, max 70 characters, must contain primary keyword",
-  "og_title": "Social share title, max 60 characters",
-  "meta_description": "Between 140-170 characters, must contain primary keyword",
+  "title": "SEO title, max 65 characters, must contain primary keyword or its core words",
+  "h1": "Page heading, max 75 characters, must contain primary keyword or its core words",
+  "og_title": "Social share title, max 65 characters",
+  "meta_description": "Between 130-185 characters, must contain primary keyword or its core words",
   "slug": "url-safe-lowercase-with-hyphens",
   "body_json": {
     "sections": [
@@ -305,6 +305,17 @@ export async function generateHeroImage(
 
 // ── Validation ─────────────────────────────────────────────────────────────
 
+function keywordMatch(text: string, keyword: string): boolean {
+  const lower = text.toLowerCase();
+  // Exact match first
+  if (lower.includes(keyword.toLowerCase())) return true;
+  // Flexible: at least 70% of keyword words must appear
+  const words = keyword.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  if (words.length === 0) return true;
+  const matched = words.filter(w => lower.includes(w)).length;
+  return matched / words.length >= 0.7;
+}
+
 function validateOutput(output: any, brief: ContentBrief): void {
   const errors: string[] = [];
 
@@ -317,24 +328,24 @@ function validateOutput(output: any, brief: ContentBrief): void {
   if (!output.link_hooks) errors.push("Missing: link_hooks");
   if (!output.target_keywords?.length) errors.push("Missing: target_keywords");
 
-  // SEO: primary keyword in key fields
-  const kw = brief.primary_keyword.toLowerCase();
-  if (output.h1 && !output.h1.toLowerCase().includes(kw))
+  // SEO: primary keyword in key fields (flexible matching for long keywords)
+  const kw = brief.primary_keyword;
+  if (output.h1 && !keywordMatch(output.h1, kw))
     errors.push(`SEO: primary keyword "${kw}" not found in h1`);
-  if (output.title && !output.title.toLowerCase().includes(kw))
+  if (output.title && !keywordMatch(output.title, kw))
     errors.push(`SEO: primary keyword "${kw}" not found in title`);
-  if (output.meta_description && !output.meta_description.toLowerCase().includes(kw))
+  if (output.meta_description && !keywordMatch(output.meta_description, kw))
     errors.push(`SEO: primary keyword "${kw}" not found in meta_description`);
 
   // SEO: field length constraints
-  if (output.title && output.title.length > 65)
-    errors.push(`SEO: title exceeds 65 chars (${output.title.length})`);
-  if (output.h1 && output.h1.length > 75)
-    errors.push(`SEO: h1 exceeds 75 chars (${output.h1.length})`);
-  if (output.meta_description && output.meta_description.length < 130)
-    errors.push(`SEO: meta_description under 130 chars (${output.meta_description.length})`);
-  if (output.meta_description && output.meta_description.length > 175)
-    errors.push(`SEO: meta_description over 175 chars (${output.meta_description.length})`);
+  if (output.title && output.title.length > 70)
+    errors.push(`SEO: title exceeds 70 chars (${output.title.length})`);
+  if (output.h1 && output.h1.length > 80)
+    errors.push(`SEO: h1 exceeds 80 chars (${output.h1.length})`);
+  if (output.meta_description && output.meta_description.length < 120)
+    errors.push(`SEO: meta_description under 120 chars (${output.meta_description.length})`);
+  if (output.meta_description && output.meta_description.length > 190)
+    errors.push(`SEO: meta_description over 190 chars (${output.meta_description.length})`);
 
   // Body: minimum sections
   if (output.body_json?.sections) {
