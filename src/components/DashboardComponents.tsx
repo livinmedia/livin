@@ -309,8 +309,6 @@ export function DashboardShell({ role, cityName, userName, activeTab, children }
           )
         })}
       </div>
-        ))}
-      </div>
 
       {/* Content */}
       <div style={{ padding: '20px 24px', maxWidth: '1400px', margin: '0 auto' }}>

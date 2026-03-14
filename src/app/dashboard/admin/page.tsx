@@ -85,7 +85,7 @@ export default function AdminDashboard() {
   if (!data) return null
 
   const { cities, content, leads, mms, mvps, agents } = data
-  const cityMap = new Map(cities.map((c: any) => [c.id, c]))
+  const cityMap: Map<string, any> = new Map(cities.map((c: any) => [c.id, c]))
 
   const publishedCount = content.filter((c: any) => c.status === 'published').length
   const queueCount = content.filter((c: any) => c.status !== 'published' && c.status !== 'archived').length
