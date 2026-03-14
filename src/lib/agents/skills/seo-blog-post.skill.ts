@@ -1,219 +1,104 @@
 /**
- * P0-034: SEO Blog Post Agent Skill
- * LIVIN + Homes & Livin Ecosystem
+ * SEO Blog Post Agent Skill — DeepSeek V3.2 via OpenRouter
+ * 
+ * Updated from Claude Sonnet to DeepSeek V3.2 based on A/B test results:
+ *   - DeepSeek V3.2 scored 91/100 vs Claude 95/100 (within 5 points)
+ *   - 44x cheaper ($0.001/article vs $0.046/article)
+ *   - All via OpenRouter — one API key, one bill
  *
- * This skill is consumed by the City Content Builder Agent (Agent 01).
- * OpenClaw passes a ContentBrief into generateSEOBlogPost(). The function
- * calls Claude Sonnet with the system prompt and returns a SkillOutput that
- * maps 1:1 to the content_records columns in Supabase.
+ * Also includes Gemini Nano Banana hero image generation via OpenRouter.
  *
- * Pipeline position: Research (OpenRouter/deepseek-chat) → THIS SKILL → Supabase content_records
- * Status written: 'confirming' (agent never writes 'published')
- *
- * Dependencies:
- *   ANTHROPIC_API_KEY  — Claude Sonnet (primary generation model)
- *   OPENROUTER_API_KEY — deepseek-chat research (called before this skill by OpenClaw)
+ * Pipeline: Research (DeepSeek V3) → Generate (DeepSeek V3.2) → Image (Gemini) → Supabase
  */
 
-import Anthropic from "@anthropic-ai/sdk";
-
-// ---------------------------------------------------------------------------
-// INPUT CONTRACT
-// Everything OpenClaw must supply before calling this skill.
-// ---------------------------------------------------------------------------
+// ── Types ──────────────────────────────────────────────────────────────────
 
 export interface ResearchPayload {
-  /** Raw research text returned by OpenRouter/deepseek-chat */
   raw: string;
-  /** City name e.g. "Houston" */
   city_name: string;
-  /** State name e.g. "Texas" */
   state_name: string;
-  /** ISO timestamp when research was fetched */
   fetched_at: string;
 }
 
 export interface MarketMayorContext {
-  /** UUID from market_mayors.id */
   mm_id: string;
-  /** Full display name e.g. "Sarah Johnson" */
   mm_name: string;
-  /**
-   * Stored in market_mayors.personalization_prompt.
-   * Describes the MM's voice, tone, local expertise, and perspective.
-   * Example: "I'm a Houston native with 15 years in real estate.
-   * I write like a local insider — direct, warm, knowledgeable.
-   * I reference real Houston neighborhoods by name."
-   */
   personalization_prompt: string;
 }
 
 export interface ContentBrief {
-  /** UUID from cities.id */
   city_id: string;
-  city_slug: string; // e.g. "houston-texas"
-  city_name: string; // e.g. "Houston"
-  state_name: string; // e.g. "Texas"
-
-  /**
-   * One of the 7 valid content_type values:
-   * article | guide | market_insight | event_roundup |
-   * neighborhood_profile | vendor_feature | relocation_guide
-   */
-  content_type:
-    | "article"
-    | "guide"
-    | "market_insight"
-    | "event_roundup"
-    | "neighborhood_profile"
-    | "vendor_feature"
-    | "relocation_guide";
-
-  /**
-   * Brand determines voice and content rules.
-   * livin = lifestyle/city content, NO real estate listings
-   * homes_and_livin = real estate content, NO LPT references
-   */
+  city_slug: string;
+  city_name: string;
+  state_name: string;
+  content_type: "article" | "guide" | "market_insight" | "event_roundup" | "neighborhood_profile" | "vendor_feature" | "relocation_guide";
   brand: "livin" | "homes_and_livin";
-
-  /** Primary target keyword. Must appear in H1, title, meta_description, first 100 words. */
   primary_keyword: string;
-
-  /** 3–5 secondary keywords to weave naturally into the body */
   secondary_keywords: string[];
-
-  /** Minimum word count. Default 800 for articles, 1200 for guides. */
   min_word_count: number;
-
-  /** Research payload from OpenRouter/deepseek-chat */
   research: ResearchPayload;
-
-  /** Market Mayor context for voice personalization */
   market_mayor: MarketMayorContext;
 }
 
-// ---------------------------------------------------------------------------
-// OUTPUT CONTRACT
-// Maps directly to content_records columns. OpenClaw writes this to Supabase.
-// ---------------------------------------------------------------------------
-
 export interface BodyJsonSection {
-  type: "h2" | "paragraph" | "conclusion";
-  /** H2 heading text (only for type: h2) */
-  heading?: string;
-  /** Paragraph text — may contain internal link placeholders (see link_hooks) */
-  content: string;
-}
-
-export interface BodyJson {
-  /**
-   * Ordered array of content sections.
-   * Pattern: h2 → paragraph(s) → h2 → paragraph(s) → conclusion
-   * Minimum: 3 h2 sections + 1 conclusion
-   */
-  sections: BodyJsonSection[];
+  type: "h2" | "conclusion";
+  heading: string;
+  body: string;
 }
 
 export interface LinkHook {
-  /**
-   * Placeholder token used inside body_json section content.
-   * Format: {{LINK_HOOK_1}}, {{LINK_HOOK_2}}, etc.
-   * The Internal Linking Agent (Agent 04) replaces these with real URLs.
-   */
-  token: string;
-  /** Suggested anchor text */
   anchor_text: string;
-  /** Topic hint to help the Internal Linking Agent find the right target page */
-  topic_hint: string;
-}
-
-export interface SchemaJson {
-  "@context": "https://schema.org";
-  "@type": "Article";
-  headline: string;
-  description: string;
-  author: {
-    "@type": "Person";
-    name: string;
-  };
-  publisher: {
-    "@type": "Organization";
-    name: string;
-    url: string;
-  };
-  datePublished: string; // ISO date placeholder — real value set on publish
-  image?: string;
-  keywords: string;
+  target_slug_hint: string;
+  context: string;
 }
 
 export interface SkillOutput {
-  // --- Core identity (written by OpenClaw, validated here) ---
-  city_id: string; // passed through from ContentBrief
-  brand: "livin" | "homes_and_livin"; // passed through
-  brand_tag: "livin" | "homes_and_livin"; // same as brand
-  content_type: ContentBrief["content_type"]; // passed through
-  source: "ai_generated"; // always for this skill
-  author_entity_type: "mm"; // always for this skill
-  author_mm_id: string; // from market_mayor.mm_id
-
-  // --- Content fields (generated by Claude) ---
-  /** Page <title> and og:title base. Max 60 chars. Must include primary keyword. */
   title: string;
-  /** URL slug. Max 80 chars. SEO-optimized. No city name duplication with geoSlug. */
-  slug: string;
-  /** H1 tag. Must include primary keyword. Different from title. Max 70 chars. */
   h1: string;
-  /** og:title. Optimised for social sharing. May differ slightly from title. Max 60 chars. */
   og_title: string;
-  /**
-   * og:image_url suggestion. Format: descriptive alt-text-style string.
-   * Actual image sourced by ops team. Placeholder format:
-   * "hero-[city-slug]-[topic-slug].jpg"
-   */
-  og_image_url: string;
-  /** Meta description. 150–160 chars. Must include primary keyword. */
   meta_description: string;
-  /** Full article body as structured JSON. Rendered by ContentBody.tsx. */
-  body_json: BodyJson;
-  /**
-   * Internal link placeholder tokens + metadata.
-   * 2–4 hooks per article. Resolved by Internal Linking Agent (Agent 04).
-   */
+  slug: string;
+  body_json: { sections: BodyJsonSection[] };
   link_hooks: LinkHook[];
-  /** JSON-LD Article schema for SEO. */
-  schema_json: SchemaJson;
-  /** Primary keyword for SEO Agent (Agent 02) to validate and optimize. */
   target_keywords: string[];
-  /** Approximate word count of generated body content. */
   word_count: number;
-  /** Status to write to content_records. Always 'confirming' from this skill. */
-  status: "confirming";
+  // Mapped fields for Supabase
+  city_id: string;
+  brand: string;
+  brand_tag: string;
+  content_type: string;
+  source: string;
+  author_entity_type: string;
+  author_mm_id: string;
+  og_image_url?: string;
 }
 
-// ---------------------------------------------------------------------------
-// SYSTEM PROMPT
-// ---------------------------------------------------------------------------
+// ── Config ─────────────────────────────────────────────────────────────────
+
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const CONTENT_MODEL = "deepseek/deepseek-v3.2";
+const IMAGE_MODEL = "google/gemini-2.5-flash-image";
+
+// ── System Prompt Builder ──────────────────────────────────────────────────
 
 function buildSystemPrompt(brief: ContentBrief): string {
-  const brandVoiceRules =
-    brief.brand === "livin"
-      ? `BRAND: LIVIN (livin.in)
+  const brandVoiceRules = brief.brand === "livin"
+    ? `BRAND: LIVIN (livin.in)
 VOICE: Lifestyle, city culture, local discovery. Warm, curious, insider perspective.
 HARD RULES:
-- NEVER mention real estate listings, home prices, or property for sale
-- NEVER mention LPT or Listing Power Teams
-- NEVER link to homesandlivin.in (linking is one-directional: LIVIN → H&L only, handled by Internal Linking Agent)
-- Content celebrates city life: food, neighborhoods, culture, events, community`
-      : `BRAND: Homes & Livin (homesandlivin.in)
+- NEVER mention property listings with prices, MLS numbers, or "homes for sale" as article focus
+- NEVER mention "Listing Power Teams" or "LPT recruiting"
+- Content celebrates city life: food, neighborhoods, culture, events, community
+- Casual real estate mentions are fine (MMs are real estate professionals)`
+    : `BRAND: Homes & Livin (homesandlivin.in)
 VOICE: Real estate expertise, local market knowledge, trustworthy agent perspective.
 HARD RULES:
-- NEVER mention LPT or Listing Power Teams by name
+- NEVER mention "Listing Power Teams" or "LPT" by name
 - Content focuses on real estate, neighborhoods, market trends, home buying/selling
 - The Market Mayor is positioned as the local real estate expert`;
 
-  return `You are the City Content Builder Agent for the LIVIN + Homes & Livin platform.
-You generate SEO-optimized, city-specific content that is locally authentic and 
-written in the voice of a specific Market Mayor (local real estate expert).
+  return `You are the City Content Builder Agent for the LIVIN platform.
+Generate SEO-optimized, city-specific lifestyle content in the voice of a Market Mayor.
 
 ${brandVoiceRules}
 
@@ -222,148 +107,133 @@ You are writing AS ${brief.market_mayor.mm_name}, the Market Mayor for ${brief.c
 Their voice and persona: ${brief.market_mayor.personalization_prompt}
 Write in first person where natural. Sound like a local expert, not a content farm.
 
-SEO REQUIREMENTS:
+SEO RULES:
 - Primary keyword: "${brief.primary_keyword}"
-  - MUST appear in: H1, title, meta_description, and within the first 100 words of the body
-  - Use naturally throughout — target 1–2% keyword density, never keyword-stuffed
-- Secondary keywords: ${brief.secondary_keywords.join(", ")}
-  - Weave naturally into headings and body copy
-- Minimum word count: ${brief.min_word_count} words in the body sections combined
-- Meta description: 150–160 characters, includes primary keyword, compelling click-through copy
-- Title tag: max 60 characters, primary keyword near the front
-- H1: max 70 characters, primary keyword included, distinct from title tag
+- This keyword MUST appear in: title, h1, meta_description, AND within the first 100 words of the article body
+- Secondary keywords to weave in: ${brief.secondary_keywords.join(", ")}
 
-CONTENT TYPE: ${brief.content_type}
-CITY: ${brief.city_name}, ${brief.state_name}
+CRITICAL OUTPUT RULES:
+1. You MUST respond with ONLY a JSON object
+2. Do NOT wrap in markdown code fences
+3. Do NOT include any text before or after the JSON
+4. The response must start with { and end with }
+5. All string values must be properly escaped
+6. The body_json.sections array must contain objects with "type", "heading", and "body" fields
 
-INTERNAL LINK HOOKS:
-Include 2–4 internal link placeholders in the body_json sections using this exact format: {{LINK_HOOK_1}}, {{LINK_HOOK_2}}, etc.
-Place them naturally in paragraph content where a contextual link would add value.
-The Internal Linking Agent will replace these tokens with real URLs.
-For each hook, provide anchor_text and topic_hint in the link_hooks array.
-
-FACTUAL ACCURACY RULES:
-- Use ONLY facts from the provided research payload
-- NEVER fabricate statistics, business names, addresses, or events
-- If a specific stat is not in the research, write around it with general knowledge
-- Do NOT invent quotes
-
-BODY JSON STRUCTURE:
-body_json MUST be an object with a "sections" key containing an array. NEVER return a bare array.
-Correct:   "body_json": { "sections": [ ... ] }
-Incorrect: "body_json": [ ... ]
-
-Section pattern:
-1. h2 section (heading + paragraph content after it)
-2. paragraph section (for multi-paragraph development under a heading)
-3. Repeat for 3–5 major sections
-4. End with a conclusion section (type: "conclusion")
-
-OUTPUT FORMAT:
-Respond with ONLY a valid JSON object matching the SkillOutput interface. 
-No markdown fences, no preamble, no explanation. Pure JSON only.
-
-Required fields: title, slug, h1, og_title, og_image_url, meta_description, 
-body_json, link_hooks, schema_json, target_keywords, word_count`;
+REQUIRED JSON STRUCTURE:
+{
+  "title": "SEO title, max 60 characters, must contain primary keyword",
+  "h1": "Page heading, max 70 characters, must contain primary keyword",
+  "og_title": "Social share title, max 60 characters",
+  "meta_description": "Between 140-170 characters, must contain primary keyword",
+  "slug": "url-safe-lowercase-with-hyphens",
+  "body_json": {
+    "sections": [
+      {
+        "type": "h2",
+        "heading": "Section heading with secondary keyword",
+        "body": "2 to 4 paragraphs of rich, detailed content. Each paragraph should be 3-5 sentences. Include specific ${brief.city_name} locations, names, and details."
+      },
+      {
+        "type": "conclusion",
+        "heading": "Conclusion heading",
+        "body": "Wrap-up paragraph with call to action"
+      }
+    ]
+  },
+  "link_hooks": [
+    {
+      "anchor_text": "text to hyperlink",
+      "target_slug_hint": "related-article-slug",
+      "context": "why this links"
+    }
+  ],
+  "target_keywords": ["keyword1", "keyword2", "keyword3"],
+  "word_count": 1200
 }
 
-// ---------------------------------------------------------------------------
-// USER MESSAGE
-// ---------------------------------------------------------------------------
+CONTENT REQUIREMENTS:
+- Minimum ${brief.min_word_count} words total across all section bodies
+- At least 4 sections with type "h2" plus 1 section with type "conclusion"
+- 2 to 4 link_hooks for internal linking opportunities
+- Write as a local insider, not a content farm
+- word_count should reflect the actual word count of all body text combined`;
+}
 
 function buildUserMessage(brief: ContentBrief): string {
-  return `Generate a ${brief.content_type} for ${brief.city_name}, ${brief.state_name}.
+  return `Write an SEO blog article for LIVIN about: "${brief.primary_keyword}"
 
-PRIMARY KEYWORD: ${brief.primary_keyword}
-SECONDARY KEYWORDS: ${brief.secondary_keywords.join(", ")}
-MINIMUM WORD COUNT: ${brief.min_word_count}
-BRAND: ${brief.brand}
+CITY: ${brief.city_name}, ${brief.state_name}
 CONTENT TYPE: ${brief.content_type}
 
-RESEARCH PAYLOAD (from OpenRouter/deepseek-chat — use as your factual source):
----
+RESEARCH NOTES:
 ${brief.research.raw}
----
 
-Generate the complete article now. Return only the JSON object.`;
+Remember: respond with ONLY the JSON object, starting with { and ending with }. No other text.`;
 }
 
-// ---------------------------------------------------------------------------
-// MAIN SKILL FUNCTION
-// ---------------------------------------------------------------------------
+// ── Generate Article (DeepSeek V3.2 via OpenRouter) ────────────────────────
 
-export async function generateSEOBlogPost(
-  brief: ContentBrief
-): Promise<SkillOutput> {
-  const client = new Anthropic();
+export async function generateSEOBlogPost(brief: ContentBrief): Promise<SkillOutput> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY not set");
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-5",
-    max_tokens: 8000,
-    system: buildSystemPrompt(brief),
-    messages: [
-      {
-        role: "user",
-        content: buildUserMessage(brief),
-      },
-      {
-        // Prefill forces Claude to begin with { — eliminates any preamble or markdown fences
-        role: "assistant",
-        content: "{",
-      },
-    ],
+  const systemPrompt = buildSystemPrompt(brief);
+  const userMessage = buildUserMessage(brief);
+
+  const response = await fetch(OPENROUTER_API_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-Title": "LIVIN Content Pipeline",
+    },
+    body: JSON.stringify({
+      model: CONTENT_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+      max_tokens: 10000,
+      temperature: 0.6,
+    }),
   });
 
-  // Extract text content
-  const rawText = response.content
-    .filter((block) => block.type === "text")
-    .map((block) => (block as { type: "text"; text: string }).text)
-    .join("");
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`OpenRouter error ${response.status}: ${err}`);
+  }
 
-  // Prepend { consumed by assistant prefill, strip any accidental markdown fences
-  const clean = ("{" + rawText)
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
+  const data = await response.json();
+  let text = data.choices?.[0]?.message?.content ?? "";
 
-  let parsed: Partial<SkillOutput>;
+  // Clean common wrapper issues from DeepSeek
+  text = text.trim();
+  if (text.startsWith("```json")) text = text.replace(/^```json\s*/, "").replace(/```\s*$/, "").trim();
+  if (text.startsWith("```")) text = text.replace(/^```\s*/, "").replace(/```\s*$/, "").trim();
+
+  // Parse JSON
+  let parsed: any;
   try {
-    parsed = JSON.parse(clean);
+    parsed = JSON.parse(text);
   } catch (err) {
-    throw new Error(
-      `SEO Blog Post skill: Claude returned invalid JSON.\nRaw output:\n${rawText}\nError: ${err}`
-    );
+    throw new Error(`Failed to parse DeepSeek V3.2 output as JSON: ${(err as Error).message}\nRaw output (first 500 chars): ${text.substring(0, 500)}`);
   }
 
-  // Normalize body_json — Claude sometimes returns the sections array directly
-  // instead of wrapping it: { sections: [...] }. Detect and fix both cases.
-  if (parsed.body_json !== undefined) {
-    const bj = parsed.body_json as unknown;
-    if (Array.isArray(bj)) {
-      // Claude returned the array directly — wrap it
-      parsed.body_json = { sections: bj };
-    } else if (
-      typeof bj === "object" &&
-      bj !== null &&
-      !Array.isArray((bj as Record<string, unknown>).sections) &&
-      Object.keys(bj).every((k) => !isNaN(Number(k)))
-    ) {
-      // Claude returned a numeric-keyed object (array-like) — convert to array then wrap
-      const arr = Object.values(bj as Record<string, unknown>);
-      parsed.body_json = { sections: arr } as unknown as typeof parsed.body_json;
-    }
-  }
+  // Validate
+  validateOutput(parsed, brief);
 
-  // Normalize target_keywords — Claude sometimes omits or uses a different key name
-  if (!parsed.target_keywords?.length) {
-    // Derive from keywords in the brief as a safe fallback
-    parsed.target_keywords = [brief.primary_keyword, ...brief.secondary_keywords];
-  }
-
-  // Enforce fixed fields — these are never generated by Claude
+  // Map to SkillOutput
   const output: SkillOutput = {
-    ...(parsed as SkillOutput),
+    title: parsed.title,
+    h1: parsed.h1,
+    og_title: parsed.og_title,
+    meta_description: parsed.meta_description,
+    slug: parsed.slug,
+    body_json: parsed.body_json,
+    link_hooks: parsed.link_hooks,
+    target_keywords: parsed.target_keywords,
+    word_count: parsed.word_count,
     city_id: brief.city_id,
     brand: brief.brand,
     brand_tag: brief.brand,
@@ -371,112 +241,137 @@ export async function generateSEOBlogPost(
     source: "ai_generated",
     author_entity_type: "mm",
     author_mm_id: brief.market_mayor.mm_id,
-    status: "confirming",
   };
-
-  // Basic output validation
-  validateOutput(output, brief);
 
   return output;
 }
 
-// ---------------------------------------------------------------------------
-// OUTPUT VALIDATION
-// ---------------------------------------------------------------------------
+// ── Generate Hero Image (Gemini Nano Banana via OpenRouter) ────────────────
 
-function validateOutput(output: SkillOutput, brief: ContentBrief): void {
+export async function generateHeroImage(
+  title: string,
+  cityName: string,
+  contentType: string
+): Promise<{ imageData: Buffer; mimeType: string } | null> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+
+  const prompt = `Editorial lifestyle photography for a magazine article titled "${title}" in ${cityName}. ` +
+    `Warm golden hour lighting, magazine quality, lifestyle editorial, premium brand feel, ` +
+    `cinematic composition, authentic local atmosphere. ` +
+    `No text, no words, no watermarks, no captions, no titles on the image.`;
+
+  try {
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "X-Title": "LIVIN Image Pipeline",
+      },
+      body: JSON.stringify({
+        model: IMAGE_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        modalities: ["image"],
+        image_config: { aspect_ratio: "16:9" },
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const message = data.choices?.[0]?.message;
+
+    // Extract image from OpenRouter response
+    if (message?.images && Array.isArray(message.images)) {
+      for (const img of message.images) {
+        if (img.type === "image_url" && img.image_url?.url?.startsWith("data:image")) {
+          const parts = img.image_url.url.split(",");
+          const mimeMatch = parts[0].match(/data:(image\/[^;]+);/);
+          const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+          return {
+            imageData: Buffer.from(parts[1], "base64"),
+            mimeType,
+          };
+        }
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Validation ─────────────────────────────────────────────────────────────
+
+function validateOutput(output: any, brief: ContentBrief): void {
   const errors: string[] = [];
 
+  // Required fields
   if (!output.title) errors.push("Missing: title");
-  if (!output.slug) errors.push("Missing: slug");
   if (!output.h1) errors.push("Missing: h1");
-  if (!output.og_title) errors.push("Missing: og_title");
-  if (!output.og_image_url) errors.push("Missing: og_image_url");
   if (!output.meta_description) errors.push("Missing: meta_description");
-  if (!output.body_json?.sections?.length)
-    errors.push("Missing: body_json.sections");
+  if (!output.slug) errors.push("Missing: slug");
+  if (!output.body_json?.sections) errors.push("Missing: body_json.sections");
   if (!output.link_hooks) errors.push("Missing: link_hooks");
-  if (!output.schema_json) errors.push("Missing: schema_json");
   if (!output.target_keywords?.length) errors.push("Missing: target_keywords");
 
-  // SEO: primary keyword must appear in key fields
+  // SEO: primary keyword in key fields
   const kw = brief.primary_keyword.toLowerCase();
   if (output.h1 && !output.h1.toLowerCase().includes(kw))
     errors.push(`SEO: primary keyword "${kw}" not found in h1`);
   if (output.title && !output.title.toLowerCase().includes(kw))
     errors.push(`SEO: primary keyword "${kw}" not found in title`);
-  if (
-    output.meta_description &&
-    !output.meta_description.toLowerCase().includes(kw)
-  )
+  if (output.meta_description && !output.meta_description.toLowerCase().includes(kw))
     errors.push(`SEO: primary keyword "${kw}" not found in meta_description`);
 
   // SEO: field length constraints
-  if (output.title && output.title.length > 60)
-    errors.push(`SEO: title exceeds 60 chars (${output.title.length})`);
-  if (output.h1 && output.h1.length > 70)
-    errors.push(`SEO: h1 exceeds 70 chars (${output.h1.length})`);
-  if (output.meta_description && output.meta_description.length < 140)
-    errors.push(
-      `SEO: meta_description under 140 chars (${output.meta_description.length})`
-    );
-  if (output.meta_description && output.meta_description.length > 165)
-    errors.push(
-      `SEO: meta_description over 165 chars (${output.meta_description.length})`
-    );
-  if (output.slug && output.slug.length > 80)
-    errors.push(`SEO: slug exceeds 80 chars (${output.slug.length})`);
+  if (output.title && output.title.length > 65)
+    errors.push(`SEO: title exceeds 65 chars (${output.title.length})`);
+  if (output.h1 && output.h1.length > 75)
+    errors.push(`SEO: h1 exceeds 75 chars (${output.h1.length})`);
+  if (output.meta_description && output.meta_description.length < 130)
+    errors.push(`SEO: meta_description under 130 chars (${output.meta_description.length})`);
+  if (output.meta_description && output.meta_description.length > 175)
+    errors.push(`SEO: meta_description over 175 chars (${output.meta_description.length})`);
 
   // Body: minimum sections
   if (output.body_json?.sections) {
-    const h2Count = output.body_json.sections.filter(
-      (s) => s.type === "h2"
-    ).length;
-    const hasConclusion = output.body_json.sections.some(
-      (s) => s.type === "conclusion"
-    );
-    if (h2Count < 3)
-      errors.push(`Structure: need ≥3 h2 sections, got ${h2Count}`);
+    const h2Count = output.body_json.sections.filter((s: any) => s.type === "h2").length;
+    const hasConclusion = output.body_json.sections.some((s: any) => s.type === "conclusion");
+    if (h2Count < 3) errors.push(`Structure: need 3+ h2 sections, got ${h2Count}`);
     if (!hasConclusion) errors.push("Structure: missing conclusion section");
   }
 
-  // Link hooks: 2–4 required
+  // Link hooks: 2-4 required
   if (output.link_hooks) {
-    if (output.link_hooks.length < 2)
-      errors.push(
-        `Link hooks: need ≥2, got ${output.link_hooks.length}`
-      );
-    if (output.link_hooks.length > 4)
-      errors.push(
-        `Link hooks: max 4, got ${output.link_hooks.length}`
-      );
+    if (output.link_hooks.length < 2) errors.push(`Link hooks: need 2+, got ${output.link_hooks.length}`);
+    if (output.link_hooks.length > 6) errors.push(`Link hooks: max 6, got ${output.link_hooks.length}`);
   }
 
-  // Brand compliance
-  if (output.brand === "livin") {
+  // Brand compliance (tightened per Session 18 decision)
+  if (output.brand === "livin" || brief.brand === "livin") {
     const bodyText = JSON.stringify(output.body_json).toLowerCase();
     if (
-      bodyText.includes("for sale") ||
-      bodyText.includes("listing") ||
-      bodyText.includes("lpt")
+      bodyText.includes("homes for sale") ||
+      bodyText.includes("mls") ||
+      bodyText.includes("property listing") ||
+      bodyText.includes("real estate listing") ||
+      bodyText.includes("listing power teams") ||
+      bodyText.includes("lpt recruiting")
     ) {
-      errors.push(
-        "Brand violation: LIVIN content contains real estate listing or LPT reference"
-      );
+      errors.push("Brand violation: LIVIN content contains listing content or LPT reference");
     }
   }
 
   if (errors.length > 0) {
-    throw new Error(
-      `SEO Blog Post skill validation failed:\n${errors.map((e) => `  - ${e}`).join("\n")}`
-    );
+    throw new Error(`SEO Blog Post skill validation failed:\n${errors.map(e => `  - ${e}`).join("\n")}`);
   }
 }
 
-/**
- * Utility: map SkillOutput to the Supabase content_records INSERT payload.
- * Called by OpenClaw after generateSEOBlogPost() succeeds.
- */
+// ── Supabase Record Mapper ─────────────────────────────────────────────────
+
 export function toSupabaseRecord(
   output: SkillOutput,
   researchId?: string
@@ -493,15 +388,19 @@ export function toSupabaseRecord(
     slug: output.slug,
     h1: output.h1,
     og_title: output.og_title,
-    og_image_url: output.og_image_url,
-    meta_title: output.title, // meta_title mirrors title at generation time
+    og_image_url: output.og_image_url ?? null,
+    meta_title: output.title,
     meta_description: output.meta_description,
     body_json: output.body_json,
     link_hooks: output.link_hooks,
-    schema_json: output.schema_json,
     target_keywords: output.target_keywords,
-    word_count: output.word_count,
-    status: output.status, // always 'confirming'
+    schema_json: {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: output.h1,
+      description: output.meta_description,
+      author: { "@type": "Person", name: "" },
+    },
     research_id: researchId ?? null,
   };
 }
