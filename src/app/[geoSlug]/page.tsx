@@ -78,7 +78,7 @@ export default async function CityPage({ params }: Props) {
   const stateAbbr = city.state?.abbreviation?.toUpperCase() || ''
 
   // Fetch all city data in parallel
-  const [articlesRes, mmRes, mvpsRes] = await Promise.all([
+  const [articlesRes, mmRes, mvpsRes, listingsRes] = await Promise.all([
     supabase
       .from('content_records')
       .select('id, title, slug, excerpt, category, content_type, published_at, word_count, hero_image_url')
@@ -99,11 +99,20 @@ export default async function CityPage({ params }: Props) {
       .eq('is_active', true)
       .order('ad_tier', { ascending: false })
       .limit(8),
+    supabase
+      .from('property_listings')
+      .select('id, address, neighborhood, price, bedrooms, bathrooms, sqft, property_type, listing_status, is_featured, is_new, badge, description, hero_image_url, listing_agent_name')
+      .eq('city_id', city.id)
+      .eq('listing_status', 'active')
+      .order('is_featured', { ascending: false })
+      .order('price', { ascending: false })
+      .limit(6),
   ])
 
   const articles = articlesRes.data || []
   const marketMayors = mmRes.data || []
   const mvps = mvpsRes.data || []
+  const listings = listingsRes.data || []
 
   // Fetch MM profiles
   const mmProfiles: Record<string, { full_name: string; avatar_url: string | null; email: string }> = {}
@@ -321,65 +330,84 @@ export default async function CityPage({ params }: Props) {
       </section>
 
       {/* ═══════════════════════════════════════════════
-          HOMES FOR SALE
+          HOMES FOR SALE — Real listings from property_listings table
           ═══════════════════════════════════════════════ */}
       <section id="homes" style={{ padding: 'clamp(40px, 5vw, 64px) 0', background: 'var(--lv-white)' }}>
         <div className="lv-container">
           <SectionHeader eyebrow="Homes for sale" eyebrowColor="var(--lv-orange)"
             title={<>Real estate in <Em>{city.name}</Em></>}
-            subtitle={`Featured homes and new listings${marketMayors.length > 0 ? ' curated by your Market Mayor' : ''}.`}
+            subtitle={`${listings.length > 0 ? listings.length + ' active listings' : 'Featured homes and new listings'}${marketMayors.length > 0 ? ' curated by your Market Mayor' : ''}.`}
           />
 
-          {/* Placeholder homes — will be replaced by real listing data */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-            {[
-              { price: '$485,000', addr: 'Coming soon', hood: city.name, beds: 3, baths: 2, sqft: '1,840', badge: 'New', grad: HOME_GRADS[0] },
-              { price: '$725,000', addr: 'Coming soon', hood: city.name, beds: 4, baths: 3, sqft: '2,650', badge: null, grad: HOME_GRADS[1] },
-              { price: '$1,250,000', addr: 'Coming soon', hood: city.name, beds: 5, baths: 4, sqft: '4,200', badge: 'Featured', grad: HOME_GRADS[2] },
-            ].map((home, i) => (
-              <div key={i} style={{
-                background: '#fff', borderRadius: 'var(--radius)', overflow: 'hidden',
-                border: '1px solid var(--lv-border)', transition: 'transform 0.25s',
-              }}>
-                <div style={{
-                  height: '160px', background: home.grad, position: 'relative',
+          {listings.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+              {listings.map((home: any, i: number) => (
+                <div key={home.id} style={{
+                  background: '#fff', borderRadius: 'var(--radius)', overflow: 'hidden',
+                  border: '1px solid var(--lv-border)', transition: 'transform 0.25s',
                 }}>
-                  <span style={{
-                    position: 'absolute', bottom: '10px', left: '12px',
-                    padding: '5px 14px', background: 'rgba(0,0,0,0.6)',
-                    backdropFilter: 'blur(4px)', borderRadius: 'var(--radius-pill)',
-                    fontSize: '14px', fontWeight: 600, color: '#fff',
+                  <div style={{
+                    height: '160px',
+                    background: home.hero_image_url
+                      ? `url(${home.hero_image_url}) center/cover`
+                      : HOME_GRADS[i % HOME_GRADS.length],
+                    position: 'relative',
                   }}>
-                    {home.price}
-                  </span>
-                  {home.badge && (
                     <span style={{
-                      position: 'absolute', top: '10px', right: '12px',
-                      padding: '3px 10px', background: 'var(--lv-orange)',
-                      borderRadius: 'var(--radius-pill)', fontSize: '9px',
-                      fontWeight: 700, color: '#fff', letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
+                      position: 'absolute', bottom: '10px', left: '12px',
+                      padding: '5px 14px', background: 'rgba(0,0,0,0.6)',
+                      backdropFilter: 'blur(4px)', borderRadius: 'var(--radius-pill)',
+                      fontSize: '14px', fontWeight: 600, color: '#fff',
                     }}>
-                      {home.badge}
+                      ${home.price.toLocaleString()}
                     </span>
-                  )}
+                    {home.badge && (
+                      <span style={{
+                        position: 'absolute', top: '10px', right: '12px',
+                        padding: '3px 10px',
+                        background: home.badge === 'price_drop' ? '#2D7DD2' : 'var(--lv-orange)',
+                        borderRadius: 'var(--radius-pill)', fontSize: '9px',
+                        fontWeight: 700, color: '#fff', letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                      }}>
+                        {home.badge === 'price_drop' ? 'Price drop' : home.badge}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--lv-black)', marginBottom: '2px' }}>
+                      {home.address}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--lv-text-muted)', marginBottom: '8px' }}>
+                      {home.neighborhood || city.name}{stateAbbr ? `, ${stateAbbr}` : ''}
+                    </div>
+                    <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: 'var(--lv-text-muted)' }}>
+                      {home.bedrooms && <span>{home.bedrooms} bed</span>}
+                      {home.bathrooms && <span>{home.bathrooms} bath</span>}
+                      {home.sqft && <span>{home.sqft.toLocaleString()} sqft</span>}
+                    </div>
+                    {home.listing_agent_name && (
+                      <div style={{ fontSize: '11px', color: 'var(--lv-text-light)', marginTop: '6px' }}>
+                        Listed by {home.listing_agent_name}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ padding: '14px 16px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--lv-black)', marginBottom: '2px' }}>
-                    {home.addr}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--lv-text-muted)', marginBottom: '8px' }}>
-                    {home.hood}{stateAbbr ? `, ${stateAbbr}` : ''}
-                  </div>
-                  <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: 'var(--lv-text-muted)' }}>
-                    <span>{home.beds} bed</span>
-                    <span>{home.baths} bath</span>
-                    <span>{home.sqft} sqft</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{
+              padding: '40px 24px', textAlign: 'center', background: '#fff',
+              borderRadius: 'var(--radius)', border: '1px solid var(--lv-border)',
+            }}>
+              <p style={{ fontSize: '15px', fontWeight: 500, color: 'var(--lv-black)', marginBottom: '6px' }}>
+                Listings coming soon for {city.name}
+              </p>
+              <p style={{ fontSize: '13px', color: 'var(--lv-text-muted)' }}>
+                Real estate listings will appear here as they are added by your Market Mayor.
+              </p>
+            </div>
+          )}
 
           <div style={{ textAlign: 'center', marginTop: '20px' }}>
             <a href="#" style={{ fontSize: '14px', fontWeight: 500, color: 'var(--lv-orange)' }}>
