@@ -74,7 +74,7 @@ export default async function HomePage() {
   // ── Fetch cities with state info ──
   const { data: cities } = await supabase
     .from('cities')
-    .select('id, name, slug, population, is_pilot, is_top_100, state_region_id')
+    .select('id, name, slug, population, is_pilot, is_top_100, state_region_id, metadata')
     .eq('is_active', true)
     .order('launch_priority', { ascending: true })
     .limit(100)
@@ -110,12 +110,12 @@ export default async function HomePage() {
 
   // ── Lifestyle discovery themes ──
   const lifestyleThemes = [
-    { title: 'Coastal', desc: 'Salt air, open water', icon: '〰', gradient: 'linear-gradient(150deg, #E0F4FF, #7CC8ED)' },
-    { title: 'Mountain', desc: 'Altitude, quiet power', icon: '△', gradient: 'linear-gradient(150deg, #E8F5E8, #6BBF6B)' },
-    { title: 'Urban pulse', desc: 'Density, electric energy', icon: '▪', gradient: 'linear-gradient(150deg, #F0ECF8, #9B85D6)' },
-    { title: 'Wellness', desc: 'Space to breathe', icon: '○', gradient: 'linear-gradient(150deg, #FFF5E8, #FFC87C)' },
-    { title: 'Luxury', desc: 'Rare air, curated', icon: '◇', gradient: 'linear-gradient(150deg, #F5F0E8, #C8B090)' },
-    { title: 'Family', desc: 'Parks, schools, Sundays', icon: '⌂', gradient: 'linear-gradient(150deg, #FFF0F0, #FFB0B0)' },
+    { title: 'Coastal', desc: 'Salt air, open water', icon: '〰', gradient: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,100,180,0.5) 100%), url(https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80) center/cover' },
+    { title: 'Mountain', desc: 'Altitude, quiet power', icon: '△', gradient: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(34,80,34,0.5) 100%), url(https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&q=80) center/cover' },
+    { title: 'Urban pulse', desc: 'Density, electric energy', icon: '▪', gradient: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(60,30,90,0.5) 100%), url(https://images.unsplash.com/photo-1514565131-fce0801e5785?w=600&q=80) center/cover' },
+    { title: 'Wellness', desc: 'Space to breathe', icon: '○', gradient: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(140,100,40,0.5) 100%), url(https://images.unsplash.com/photo-1540555700478-4be289fbec6b?w=600&q=80) center/cover' },
+    { title: 'Luxury', desc: 'Rare air, curated', icon: '◇', gradient: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(80,60,30,0.5) 100%), url(https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80) center/cover' },
+    { title: 'Family', desc: 'Parks, schools, Sundays', icon: '⌂', gradient: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(120,40,60,0.5) 100%), url(https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80) center/cover' },
   ]
 
   return (
@@ -242,6 +242,10 @@ export default async function HomePage() {
               {heroCities.map((city, i) => {
                 const state = stateMap.get(city.state_region_id)
                 const isFirst = i === 0
+                const imgUrl = city.metadata?.hero_image_url
+                const bgStyle = imgUrl
+                  ? `linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.55) 100%), url(${imgUrl}) center/cover`
+                  : getCityColor(city.slug, i)
                 return (
                   <a
                     key={city.slug}
@@ -252,7 +256,7 @@ export default async function HomePage() {
                       justifyContent: 'flex-end',
                       padding: '18px',
                       borderRadius: '18px',
-                      background: getCityColor(city.slug, i),
+                      background: bgStyle,
                       minHeight: isFirst ? '180px' : '140px',
                       gridColumn: isFirst ? 'span 2' : undefined,
                       position: 'relative',
@@ -793,11 +797,16 @@ function GreenEm({ children }: { children: React.ReactNode }) {
 }
 
 function CityCard({ city, state, index, size }: {
-  city: { name: string; slug: string }
+  city: { name: string; slug: string; metadata?: any }
   state?: { name: string; abbreviation: string } | null
   index: number
   size: 'lg' | 'sm'
 }) {
+  const imgUrl = city.metadata?.hero_image_url
+  const bgStyle = imgUrl
+    ? `linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.55) 100%), url(${imgUrl}) center/cover`
+    : getCityColor(city.slug, index)
+
   return (
     <a
       href={`/${city.slug}`}
@@ -807,7 +816,7 @@ function CityCard({ city, state, index, size }: {
         justifyContent: 'flex-end',
         padding: '18px',
         borderRadius: 'var(--radius)',
-        background: getCityColor(city.slug, index),
+        background: bgStyle,
         minHeight: size === 'lg' ? '180px' : '130px',
         position: 'relative',
         overflow: 'hidden',
