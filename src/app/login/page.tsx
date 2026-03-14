@@ -1,279 +1,195 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
 
-const supabase = createSupabaseBrowserClient();
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"password" | "magic">("password");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [magicSent, setMagicSent] = useState(false);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  async function handlePasswordLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) {
-      setError(err.message);
-      setLoading(false);
-    } else {
-      router.push("/dashboard");
-      router.refresh();
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) {
+        setError(authError.message)
+        setLoading(false)
+        return
+      }
+
+      if (!data.user) {
+        setError('Login failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      // Get user profile to determine role
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single()
+
+      if (profileError) {
+        // Fallback to user metadata if profile query fails
+        const role = data.user.user_metadata?.role || 'user'
+        routeByRole(role)
+        return
+      }
+
+      routeByRole(profile?.role || 'user')
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.')
+      setLoading(false)
     }
   }
 
-  async function handleMagicLink(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-    });
-    if (err) {
-      setError(err.message);
+  function routeByRole(role: string) {
+    if (role === 'super_admin' || role === 'admin') {
+      window.location.href = '/dashboard/admin'
+    } else if (role === 'market_mayor') {
+      window.location.href = '/dashboard/mm'
+    } else if (role === 'mvp') {
+      window.location.href = '/dashboard/mvp'
     } else {
-      setMagicSent(true);
+      window.location.href = '/dashboard/admin'
     }
-    setLoading(false);
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
-        fontFamily:
-          "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          padding: "clamp(24px, 6vw, 40px)",
-          margin: "0 16px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 16,
-          backdropFilter: "blur(20px)",
-        }}
-      >
+    <div style={{
+      fontFamily: "'Outfit', sans-serif",
+      minHeight: '100vh',
+      background: 'linear-gradient(160deg, #FFF8F0 0%, #FEF0E4 25%, #F0F4FF 60%, #EAF8F0 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{ width: '100%', maxWidth: '420px', padding: '0 24px' }}>
         {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div
-            style={{
-              fontSize: 32,
-              fontWeight: 800,
-              letterSpacing: "0.08em",
-              color: "#fff",
-            }}
-          >
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{
+            fontFamily: "'Libre Caslon Display', Georgia, serif",
+            fontSize: '40px', color: '#1a1a1a', marginBottom: '8px',
+          }}>
             LIVIN
           </div>
-          <div
-            style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 4 }}
-          >
-            Market Mayor Dashboard
-          </div>
+          <p style={{ fontSize: '16px', fontWeight: 300, color: '#999' }}>
+            Sign in to your dashboard
+          </p>
         </div>
 
-        {magicSent ? (
-          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>✉️</div>
-            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-              Check your email
-            </div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>
-              We sent a login link to <strong>{email}</strong>
-            </div>
-            <button
-              onClick={() => {
-                setMagicSent(false);
-                setMode("password");
-              }}
-              style={{
-                marginTop: 24,
-                background: "none",
-                border: "none",
-                color: "#d4a843",
-                cursor: "pointer",
-                fontSize: 14,
-                minHeight: 44,
-                padding: "10px 20px",
-              }}
-            >
-              Back to login
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Toggle */}
-            <div
-              style={{
-                display: "flex",
-                gap: 0,
-                marginBottom: 24,
-                background: "rgba(255,255,255,0.06)",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
-              {(["password", "magic"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  style={{
-                    flex: 1,
-                    padding: "12px 0",
-                    minHeight: 44,
-                    background:
-                      mode === m ? "rgba(212,168,67,0.15)" : "transparent",
-                    border: "none",
-                    color:
-                      mode === m ? "#d4a843" : "rgba(255,255,255,0.4)",
-                    fontWeight: mode === m ? 600 : 400,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {m === "password" ? "Password" : "Magic Link"}
-                </button>
-              ))}
-            </div>
-
-            <form
-              onSubmit={
-                mode === "password" ? handlePasswordLogin : handleMagicLink
-              }
-            >
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.5)",
-                    marginBottom: 6,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@livin.in"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: 8,
-                    color: "#fff",
-                    fontSize: 16,
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
-                />
-              </div>
-
-              {mode === "password" && (
-                <div style={{ marginBottom: 24 }}>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "rgba(255,255,255,0.5)",
-                      marginBottom: 6,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: 8,
-                      color: "#fff",
-                      fontSize: 16,
-                      outline: "none",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-              )}
-
-              {error && (
-                <div
-                  style={{
-                    padding: "10px 14px",
-                    background: "rgba(220,38,38,0.1)",
-                    border: "1px solid rgba(220,38,38,0.3)",
-                    borderRadius: 8,
-                    color: "#fca5a5",
-                    fontSize: 13,
-                    marginBottom: 16,
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
+        {/* Login card */}
+        <div style={{
+          background: '#fff', borderRadius: '18px',
+          border: '1px solid #EEEAE4', padding: '36px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+        }}>
+          <form onSubmit={handleLogin}>
+            {/* Email */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{
+                display: 'block', fontSize: '12px', fontWeight: 500,
+                color: '#999', marginBottom: '8px', letterSpacing: '0.04em',
+              }}>
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@livin.in"
+                required
                 style={{
-                  width: "100%",
-                  padding: "14px 0",
-                  minHeight: 48,
-                  background: loading
-                    ? "rgba(212,168,67,0.3)"
-                    : "linear-gradient(135deg, #d4a843, #b8922e)",
-                  border: "none",
-                  borderRadius: 8,
-                  color: "#0f172a",
-                  fontSize: 15,
-                  fontWeight: 700,
-                  cursor: loading ? "wait" : "pointer",
-                  letterSpacing: "0.02em",
-                  transition: "all 0.2s",
+                  width: '100%', padding: '14px 18px',
+                  background: '#F9F7F3', border: '1px solid #EEEAE4',
+                  borderRadius: '12px', fontSize: '15px', color: '#1a1a1a',
+                  outline: 'none', boxSizing: 'border-box',
+                  transition: 'border-color 0.2s',
                 }}
-              >
-                {loading
-                  ? "Signing in..."
-                  : mode === "password"
-                  ? "Sign In"
-                  : "Send Magic Link"}
-              </button>
-            </form>
-          </>
-        )}
+                onFocus={e => e.target.style.borderColor = '#E85D2A'}
+                onBlur={e => e.target.style.borderColor = '#EEEAE4'}
+              />
+            </div>
+
+            {/* Password */}
+            <div style={{ marginBottom: '28px' }}>
+              <label style={{
+                display: 'block', fontSize: '12px', fontWeight: 500,
+                color: '#999', marginBottom: '8px', letterSpacing: '0.04em',
+              }}>
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••••"
+                required
+                style={{
+                  width: '100%', padding: '14px 18px',
+                  background: '#F9F7F3', border: '1px solid #EEEAE4',
+                  borderRadius: '12px', fontSize: '15px', color: '#1a1a1a',
+                  outline: 'none', boxSizing: 'border-box',
+                  transition: 'border-color 0.2s',
+                }}
+                onFocus={e => e.target.style.borderColor = '#E85D2A'}
+                onBlur={e => e.target.style.borderColor = '#EEEAE4'}
+              />
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div style={{
+                padding: '12px 16px', background: '#FFF5ED',
+                border: '1px solid #FDDCBB', borderRadius: '12px',
+                fontSize: '13px', color: '#93400D', marginBottom: '18px',
+                lineHeight: 1.4,
+              }}>
+                {error}
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%', padding: '16px',
+                background: loading ? '#ddd' : 'linear-gradient(135deg, #FF8C3C, #E85D2A)',
+                color: '#fff', border: 'none', borderRadius: '100px',
+                fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: loading ? 'none' : '0 4px 20px rgba(232,93,42,0.25)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+              }}
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div style={{ textAlign: 'center', marginTop: '28px' }}>
+          <a href="/" style={{
+            fontSize: '13px', color: '#999', textDecoration: 'none',
+            fontWeight: 400,
+          }}>
+            ← Back to livin.in
+          </a>
+        </div>
       </div>
     </div>
-  );
+  )
 }
