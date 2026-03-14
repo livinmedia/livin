@@ -139,12 +139,7 @@ export default async function HomePage() {
         }} />
 
         <div className="lv-container" style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1.1fr 1fr',
-            gap: 'clamp(24px, 4vw, 48px)',
-            alignItems: 'center',
-          }}>
+          <div className="lv-hero-split">
             {/* Left — Copy */}
             <div style={{ maxWidth: '480px' }}>
               <div className="fade-up" style={{
@@ -350,23 +345,14 @@ export default async function HomePage() {
           <SectionHeader eyebrow="Places" eyebrowColor="var(--lv-blue)" title={<>Every city is a different <Em>way of LIVIN</Em></>} subtitle="Tap into the rhythm of a place. Click any city to go deeper." />
 
           {/* Top row — larger cards */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px',
-            marginBottom: '12px',
-          }}>
+          <div className="lv-grid-3" style={{ marginBottom: '12px' }}>
             {featuredCities.slice(0, 3).map((city, i) => (
               <CityCard key={city.slug} city={city} state={stateMap.get(city.state_region_id)} index={i} size="lg" />
             ))}
           </div>
 
           {/* Bottom row — smaller cards */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px',
-          }}>
+          <div className="lv-grid-3">
             {featuredCities.slice(3, 6).map((city, i) => (
               <CityCard key={city.slug} city={city} state={stateMap.get(city.state_region_id)} index={i + 3} size="sm" />
             ))}
@@ -394,12 +380,7 @@ export default async function HomePage() {
         <div className="lv-container">
           <SectionHeader eyebrow="Discovery" eyebrowColor="var(--lv-orange)" title={<>How do you want <Em>to live?</Em></>} subtitle="Not by bedrooms. Not by price. By the life you want to wake up to." />
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px',
-            marginBottom: '12px',
-          }}>
+          <div className="lv-grid-3" style={{ marginBottom: '12px' }}>
             {lifestyleThemes.slice(0, 3).map(theme => (
               <a key={theme.title} href="#" style={{
                 display: 'flex',
@@ -418,7 +399,7 @@ export default async function HomePage() {
               </a>
             ))}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+          <div className="lv-grid-3">
             {lifestyleThemes.slice(3, 6).map(theme => (
               <a key={theme.title} href="#" style={{
                 display: 'flex',
@@ -448,11 +429,7 @@ export default async function HomePage() {
           <SectionHeader eyebrow="Latest stories" eyebrowColor="var(--lv-purple)" title={<>Fresh from the <Em>network</Em></>} subtitle="Editorial content generated daily across all cities. Click to read." />
 
           {articles && articles.length > 0 ? (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '12px',
-            }}>
+            <div className="lv-grid-2">
               {articles.map((article, i) => {
                 const city = cityMap.get(article.city_id)
                 const citySlug = city?.slug || ''
@@ -542,11 +519,7 @@ export default async function HomePage() {
             </div>
           ) : (
             /* Placeholder state when no content is published yet */
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '12px',
-            }}>
+            <div className="lv-grid-2">
               {[
                 { cat: 'Food & dining', title: 'Content coming soon', city: 'Houston, TX', grad: ARTICLE_GRADIENTS[0], color: '#E85D2A' },
                 { cat: 'Neighborhoods', title: 'Content coming soon', city: 'Miami, FL', grad: ARTICLE_GRADIENTS[1], color: '#2D7DD2' },
@@ -618,12 +591,10 @@ export default async function HomePage() {
             The rhythm of a city. The energy of a neighborhood. The quiet of
             a backyard. That is what LIVIN helps you discover.
           </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '10px',
+          <div className="lv-grid-4" style={{
             maxWidth: '520px',
             margin: '0 auto',
+            gap: '10px',
           }}>
             {['Rhythm', 'Energy', 'Belonging', 'Possibility'].map(word => (
               <div key={word} style={{
@@ -656,11 +627,7 @@ export default async function HomePage() {
             title={<>A LIVIN network of <GreenEm>places and intelligence</GreenEm></>}
             subtitle="Behind every city is a growing layer of content, local discovery, and AI."
           />
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '12px',
-          }}>
+          <div className="lv-grid-4">
             {[
               { color: '#FF8C3C', title: 'City intelligence', desc: 'Deep profiles, data, editorial craft' },
               { color: '#5BA4F5', title: 'Local ecosystem', desc: 'Businesses, services, community' },
@@ -739,6 +706,7 @@ export default async function HomePage() {
             fontSize: '15px',
             fontWeight: 600,
             boxShadow: '0 4px 20px rgba(232,93,42,0.2)',
+            minHeight: '48px',
           }}>
             Start exploring →
           </a>

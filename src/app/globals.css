@@ -69,3 +69,149 @@ a { color: inherit; text-decoration: none; }
 .d2 { animation-delay: 0.2s; }
 .d3 { animation-delay: 0.35s; }
 .d4 { animation-delay: 0.5s; }
+
+/* ── Responsive utilities ────────────────────────────────── */
+
+/* Inputs: prevent iOS zoom */
+input, select, textarea { font-size: 16px !important; }
+
+/* Grids — mobile-first responsive */
+.lv-grid-2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.lv-grid-3 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.lv-grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+@media (min-width: 768px) {
+  .lv-grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .lv-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .lv-grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1024px) {
+  .lv-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .lv-grid-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Hero split — stacks on mobile */
+.lv-hero-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  align-items: center;
+}
+@media (min-width: 768px) {
+  .lv-hero-split { grid-template-columns: 1.1fr 1fr; gap: clamp(24px, 4vw, 48px); }
+}
+
+/* Article page: content + sidebar → stacks on mobile */
+.lv-article-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  align-items: flex-start;
+}
+@media (min-width: 1024px) {
+  .lv-article-layout { grid-template-columns: 1fr 340px; gap: 40px; }
+}
+
+/* Nav: hide desktop links on mobile, show hamburger */
+.lv-nav-links { display: none; }
+@media (min-width: 768px) {
+  .lv-nav-links { display: flex; align-items: center; gap: 28px; }
+}
+.lv-nav-hamburger { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer; background: none; border: none; }
+@media (min-width: 768px) {
+  .lv-nav-hamburger { display: none; }
+}
+
+/* Mobile nav overlay */
+.lv-mobile-nav {
+  position: fixed; inset: 0; z-index: 200; background: var(--lv-white);
+  display: flex; flex-direction: column; padding: 80px 24px 24px;
+  gap: 8px;
+}
+
+/* Footer: stack on mobile */
+.lv-footer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (min-width: 768px) {
+  .lv-footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr; gap: 32px; }
+}
+
+/* Dashboard: sidebar on desktop, bottom tabs on mobile */
+.lv-dash-layout { display: flex; flex-direction: column; }
+@media (min-width: 768px) {
+  .lv-dash-layout { flex-direction: row; }
+}
+
+.lv-dash-sidebar {
+  display: flex;
+  order: 2;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(15,23,42,0.98);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 6px 8px;
+  z-index: 100;
+  justify-content: space-around;
+  backdrop-filter: blur(12px);
+}
+@media (min-width: 768px) {
+  .lv-dash-sidebar {
+    order: 0; position: static;
+    flex-direction: column; justify-content: flex-start;
+    width: 220px; min-height: calc(100vh - 65px);
+    padding: 24px 16px;
+    border-top: none; border-right: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+}
+
+.lv-dash-main { flex: 1; padding: 20px 16px 80px; }
+@media (min-width: 768px) {
+  .lv-dash-main { padding: 32px; }
+}
+
+/* Dashboard stat grid — responsive */
+.lv-stat-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+@media (min-width: 1024px) {
+  .lv-stat-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+}
+
+/* Hero image responsive aspect */
+.lv-hero-img {
+  border-radius: var(--radius);
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  width: 100%;
+}
+@media (min-width: 768px) {
+  .lv-hero-img { aspect-ratio: 16/9; }
+}
+
+/* Hide on mobile / show on mobile */
+.lv-hide-mobile { display: none; }
+@media (min-width: 768px) { .lv-hide-mobile { display: block; } }
+.lv-show-mobile { display: block; }
+@media (min-width: 768px) { .lv-show-mobile { display: none; } }
+
+/* Touch-friendly button base */
+.lv-touch-btn { min-height: 44px; min-width: 44px; }
+
+/* Dashboard tab buttons — column on mobile, row on desktop */
+.lv-dash-tab-btn { flex-direction: column; }
+@media (min-width: 768px) {
+  .lv-dash-tab-btn {
+    flex-direction: row !important;
+    gap: 10px !important;
+    width: 100%;
+    padding: 10px 14px !important;
+    margin-bottom: 4px;
+    font-size: 14px !important;
+    text-align: left !important;
+    justify-content: flex-start;
+  }
+  .lv-dash-tab-btn .lv-dash-tab-label { font-size: 14px; }
+}

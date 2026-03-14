@@ -222,9 +222,7 @@ export default async function CityPage({ params }: Props) {
           </p>
 
           {/* Hot topics row */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px',
-          }}>
+          <div className="lv-grid-3" style={{ gap: '10px' }}>
             {hotTopics.map((topic, i) => (
               <a key={i} href={topic.href} style={{
                 display: 'flex', gap: '12px', alignItems: 'center',
@@ -267,8 +265,8 @@ export default async function CityPage({ params }: Props) {
           {featuredArticle ? (
             <>
               {/* Featured article — split layout */}
-              <a href={`/${geoSlug}/${featuredArticle.slug}`} style={{
-                display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0',
+              <a href={`/${geoSlug}/${featuredArticle.slug}`} className="lv-hero-split" style={{
+                gap: '0',
                 background: '#fff', borderRadius: 'var(--radius)', overflow: 'hidden',
                 border: '1px solid var(--lv-border)', marginBottom: '14px',
                 transition: 'transform 0.25s, box-shadow 0.25s',
@@ -300,7 +298,7 @@ export default async function CityPage({ params }: Props) {
 
               {/* First grid of articles */}
               {firstGridArticles.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                <div className="lv-grid-3">
                   {firstGridArticles.map((article, i) => (
                     <ArticleCard key={article.id} article={article} geoSlug={geoSlug} index={i + 1} />
                   ))}
@@ -331,7 +329,7 @@ export default async function CityPage({ params }: Props) {
           />
 
           {/* Placeholder homes — will be replaced by real listing data */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+          <div className="lv-grid-3">
             {[
               { price: '$485,000', addr: 'Coming soon', hood: city.name, beds: 3, baths: 2, sqft: '1,840', badge: 'New', grad: HOME_GRADS[0] },
               { price: '$725,000', addr: 'Coming soon', hood: city.name, beds: 4, baths: 3, sqft: '2,650', badge: null, grad: HOME_GRADS[1] },
@@ -398,7 +396,7 @@ export default async function CityPage({ params }: Props) {
             <SectionHeader eyebrow="More stories" eyebrowColor="var(--lv-purple)"
               title={<>Keep exploring <Em>{city.name}</Em></>} subtitle=""
             />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+            <div className="lv-grid-3">
               {secondGridArticles.map((article, i) => (
                 <ArticleCard key={article.id} article={article} geoSlug={geoSlug} index={i + 4} />
               ))}
@@ -419,10 +417,7 @@ export default async function CityPage({ params }: Props) {
             />
 
             {featuredMvps.length > 0 && (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '12px',
+              <div className="lv-grid-2" style={{
                 marginBottom: standardMvps.length > 0 ? '12px' : '0',
               }}>
                 {featuredMvps.map(mvp => <MvpCard key={mvp.id} mvp={mvp} featured />)}
@@ -430,7 +425,7 @@ export default async function CityPage({ params }: Props) {
             )}
 
             {standardMvps.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+              <div className="lv-grid-3">
                 {standardMvps.map(mvp => <MvpCard key={mvp.id} mvp={mvp} />)}
               </div>
             )}
@@ -449,9 +444,7 @@ export default async function CityPage({ params }: Props) {
               subtitle={`Your Market Mayor is a licensed real estate professional and community leader who curates the LIVIN experience in ${city.name}.`}
             />
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: marketMayors.length > 1 ? 'repeat(2, 1fr)' : '1fr',
+            <div className={marketMayors.length > 1 ? 'lv-grid-2' : ''} style={{
               gap: '14px',
               maxWidth: marketMayors.length === 1 ? '620px' : undefined,
               margin: marketMayors.length === 1 ? '0 auto' : undefined,
@@ -464,8 +457,9 @@ export default async function CityPage({ params }: Props) {
                 return (
                   <div key={mm.id} style={{
                     background: '#fff', border: '1px solid var(--lv-border)',
-                    borderRadius: 'var(--radius)', padding: '28px',
-                    display: 'flex', gap: '20px', alignItems: 'flex-start',
+                    borderRadius: 'var(--radius)', padding: 'clamp(20px, 4vw, 28px)',
+                    display: 'flex', gap: '16px', alignItems: 'flex-start',
+                    flexWrap: 'wrap',
                   }}>
                     <div style={{
                       width: '72px', height: '72px', borderRadius: '50%',
@@ -547,7 +541,7 @@ export default async function CityPage({ params }: Props) {
             <SectionHeader eyebrow="Even more" eyebrowColor="var(--lv-blue)"
               title={<>Deep dive into <Em>{city.name}</Em></>} subtitle=""
             />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+            <div className="lv-grid-3">
               {moreArticles.map((article, i) => (
                 <ArticleCard key={article.id} article={article} geoSlug={geoSlug} index={i + 7} />
               ))}

@@ -61,7 +61,8 @@ export default function LoginPage() {
         style={{
           width: "100%",
           maxWidth: 420,
-          padding: 40,
+          padding: "clamp(24px, 6vw, 40px)",
+          margin: "0 16px",
           background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 16,
@@ -108,6 +109,8 @@ export default function LoginPage() {
                 color: "#d4a843",
                 cursor: "pointer",
                 fontSize: 14,
+                minHeight: 44,
+                padding: "10px 20px",
               }}
             >
               Back to login
@@ -132,7 +135,8 @@ export default function LoginPage() {
                   onClick={() => setMode(m)}
                   style={{
                     flex: 1,
-                    padding: "10px 0",
+                    padding: "12px 0",
+                    minHeight: 44,
                     background:
                       mode === m ? "rgba(212,168,67,0.15)" : "transparent",
                     border: "none",
@@ -181,7 +185,7 @@ export default function LoginPage() {
                     border: "1px solid rgba(255,255,255,0.1)",
                     borderRadius: 8,
                     color: "#fff",
-                    fontSize: 15,
+                    fontSize: 16,
                     outline: "none",
                     boxSizing: "border-box",
                   }}
@@ -216,7 +220,7 @@ export default function LoginPage() {
                       border: "1px solid rgba(255,255,255,0.1)",
                       borderRadius: 8,
                       color: "#fff",
-                      fontSize: 15,
+                      fontSize: 16,
                       outline: "none",
                       boxSizing: "border-box",
                     }}
@@ -246,6 +250,7 @@ export default function LoginPage() {
                 style={{
                   width: "100%",
                   padding: "14px 0",
+                  minHeight: 48,
                   background: loading
                     ? "rgba(212,168,67,0.3)"
                     : "linear-gradient(135deg, #d4a843, #b8922e)",

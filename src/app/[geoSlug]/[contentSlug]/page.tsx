@@ -139,6 +139,14 @@ export default async function ArticlePage({ params }: Props) {
 
   return (
     <>
+      {/* JSON-LD structured data */}
+      {article.schema_json && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(article.schema_json) }}
+        />
+      )}
+
       <Nav />
 
       {/* ═══════════════════════════════════════════════
@@ -252,10 +260,8 @@ export default async function ArticlePage({ params }: Props) {
           HERO IMAGE
           ═══════════════════════════════════════════════ */}
       <div className="lv-container" style={{ paddingTop: '24px' }}>
-        <div style={{
-          height: 'clamp(200px, 30vw, 400px)',
+        <div className="lv-hero-img" style={{
           background: heroImg,
-          borderRadius: 'var(--radius)',
           marginBottom: '32px',
         }} />
       </div>
@@ -263,11 +269,7 @@ export default async function ArticlePage({ params }: Props) {
       {/* ═══════════════════════════════════════════════
           MAIN CONTENT + SIDEBAR
           ═══════════════════════════════════════════════ */}
-      <div className="lv-container" style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 340px',
-        gap: '40px',
-        alignItems: 'flex-start',
+      <div className="lv-container lv-article-layout" style={{
         paddingBottom: 'clamp(48px, 6vw, 80px)',
       }}>
         {/* ── Main article body ── */}
@@ -343,7 +345,7 @@ export default async function ArticlePage({ params }: Props) {
               }}>
                 More from {cityName}
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+              <div className="lv-grid-2">
                 {relatedArticles.slice(0, 4).map((rel, i) => (
                   <a key={rel.id} href={`/${geoSlug}/${rel.slug}`} style={{
                     display: 'flex', gap: '14px', alignItems: 'center',

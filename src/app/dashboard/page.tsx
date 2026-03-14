@@ -291,7 +291,7 @@ export default function Dashboard() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "16px 32px",
+          padding: "12px clamp(16px, 4vw, 32px)",
           borderBottom: `1px solid ${BORDER}`,
           background: "rgba(15,23,42,0.95)",
           backdropFilter: "blur(12px)",
@@ -313,7 +313,8 @@ export default function Dashboard() {
           <button
             onClick={handleSignOut}
             style={{
-              padding: "6px 14px",
+              padding: "8px 14px",
+              minHeight: 44,
               background: "rgba(255,255,255,0.06)",
               border: `1px solid ${BORDER}`,
               borderRadius: 6,
@@ -327,17 +328,9 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div style={{ display: "flex", maxWidth: 1400, margin: "0 auto" }}>
-        {/* ── Sidebar ── */}
-        <nav
-          style={{
-            width: 220,
-            padding: "24px 16px",
-            borderRight: `1px solid ${BORDER}`,
-            minHeight: "calc(100vh - 65px)",
-            flexShrink: 0,
-          }}
-        >
+      <div className="lv-dash-layout" style={{ maxWidth: 1400, margin: "0 auto" }}>
+        {/* ── Sidebar / Bottom tabs ── */}
+        <nav className="lv-dash-sidebar">
           {(
             [
               { key: "overview", label: "Overview", icon: "📊" },
@@ -350,36 +343,43 @@ export default function Dashboard() {
             <button
               key={item.key}
               onClick={() => setTab(item.key)}
+              className="lv-dash-tab-btn"
               style={{
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                gap: 10,
-                width: "100%",
-                padding: "10px 14px",
-                marginBottom: 4,
+                gap: 2,
+                padding: "8px 4px",
+                minWidth: 56,
+                minHeight: 44,
                 background: tab === item.key ? "rgba(212,168,67,0.1)" : "transparent",
                 border: "none",
                 borderRadius: 8,
                 color: tab === item.key ? GOLD : TEXT_DIM,
-                fontSize: 14,
+                fontSize: 10,
                 fontWeight: tab === item.key ? 600 : 400,
                 cursor: "pointer",
-                textAlign: "left",
+                textAlign: "center",
                 transition: "all 0.15s",
+                position: "relative",
               }}
             >
-              <span style={{ fontSize: 16 }}>{item.icon}</span>
-              {item.label}
+              <span style={{ fontSize: 18 }}>{item.icon}</span>
+              <span className="lv-dash-tab-label">{item.label}</span>
               {item.badge ? (
                 <span
                   style={{
-                    marginLeft: "auto",
-                    background: "rgba(245,158,11,0.2)",
-                    color: ORANGE,
-                    padding: "2px 7px",
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    background: ORANGE,
+                    color: "#fff",
+                    padding: "1px 5px",
                     borderRadius: 10,
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: 700,
+                    minWidth: 16,
+                    textAlign: "center",
                   }}
                 >
                   {item.badge}
@@ -390,7 +390,7 @@ export default function Dashboard() {
         </nav>
 
         {/* ── Main Content ── */}
-        <main style={{ flex: 1, padding: 32 }}>
+        <main className="lv-dash-main">
           {/* ════════ OVERVIEW ════════ */}
           {tab === "overview" && (
             <>
@@ -403,10 +403,8 @@ export default function Dashboard() {
 
               {/* Stat cards */}
               <div
+                className="lv-stat-grid"
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, 1fr)",
-                  gap: 16,
                   marginBottom: 32,
                 }}
               >
@@ -445,12 +443,13 @@ export default function Dashboard() {
                           onClick={() => approveArticle(article.id)}
                           disabled={actionLoading === article.id}
                           style={{
-                            padding: "8px 16px",
+                            padding: "10px 16px",
+                            minHeight: 44,
                             background: "rgba(34,197,94,0.15)",
                             border: "1px solid rgba(34,197,94,0.3)",
                             borderRadius: 6,
                             color: GREEN,
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: 600,
                             cursor: "pointer",
                           }}
@@ -462,6 +461,7 @@ export default function Dashboard() {
                           disabled={actionLoading === article.id}
                           style={{
                             padding: "8px 16px",
+                            minHeight: 44,
                             background: "rgba(239,68,68,0.1)",
                             border: "1px solid rgba(239,68,68,0.2)",
                             borderRadius: 6,
@@ -571,6 +571,7 @@ export default function Dashboard() {
                               disabled={actionLoading === article.id}
                               style={{
                                 padding: "10px 16px",
+                                minHeight: 44,
                                 background: "rgba(239,68,68,0.1)",
                                 border: "1px solid rgba(239,68,68,0.2)",
                                 borderRadius: 8,
@@ -690,13 +691,13 @@ export default function Dashboard() {
             <>
               <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Analytics</h1>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 32 }}>
+              <div className="lv-grid-3" style={{ gap: 16, marginBottom: 32 }}>
                 <StatCard label="Total Articles" value={content.length} />
                 <StatCard label="Total Words" value={totalWords.toLocaleString()} />
                 <StatCard label="Total Leads" value={leads.length} />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div className="lv-grid-2" style={{ gap: 16 }}>
                 <div style={cardStyle}>
                   <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Content by Status</h3>
                   {Object.entries(
@@ -739,7 +740,7 @@ export default function Dashboard() {
             <>
               <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Profile</h1>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div className="lv-grid-2" style={{ gap: 16 }}>
                 <div style={cardStyle}>
                   <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Personal Info</h3>
                   {[
