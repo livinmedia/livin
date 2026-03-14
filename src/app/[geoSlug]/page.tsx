@@ -86,7 +86,7 @@ export default async function CityPage({ params }: Props) {
       .eq('brand', 'livin')
       .eq('status', 'published')
       .order('published_at', { ascending: false })
-      .limit(12),
+      .limit(20),
     supabase
       .from('market_mayors')
       .select('id, bio, specialty_areas, license_number, license_state, is_featured, social_links, user_id')
@@ -122,7 +122,7 @@ export default async function CityPage({ params }: Props) {
   const featuredArticle = articles[0] || null
   const firstGridArticles = articles.slice(1, 4)
   const secondGridArticles = articles.slice(4, 7)
-  const moreArticles = articles.slice(7)
+  const moreArticles = articles.slice(7, 13) // Cap at 6 for clean 3x2 grid
 
   // MVP splits
   const featuredMvps = mvps.filter(m => m.ad_tier === 'premium' || m.ad_tier === 'category_exclusive' || m.ad_tier === 'featured')
@@ -231,6 +231,7 @@ export default async function CityPage({ params }: Props) {
                 padding: '14px 16px', background: '#fff',
                 border: '1px solid var(--lv-border)', borderRadius: 'var(--radius)',
                 transition: 'transform 0.2s, box-shadow 0.2s',
+                minWidth: 0, overflow: 'hidden',
               }}>
                 <div style={{
                   width: '40px', height: '40px', borderRadius: '10px',
@@ -240,11 +241,11 @@ export default async function CityPage({ params }: Props) {
                 }}>
                   {topic.icon}
                 </div>
-                <div>
+                <div style={{ minWidth: 0, overflow: 'hidden' }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--lv-black)', marginBottom: '1px' }}>
                     {topic.label}
                   </div>
-                  <div style={{ fontSize: '12px', fontWeight: 300, color: 'var(--lv-text-muted)' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 300, color: 'var(--lv-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {topic.value}
                   </div>
                 </div>
