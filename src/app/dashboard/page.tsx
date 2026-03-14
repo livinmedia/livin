@@ -7,7 +7,35 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 const supabase = createSupabaseBrowserClient();
 
 // ── Types ──
-type Tab = "overview" | "content" | "leads" | "analytics" | "profile";
+type Tab = "overview" | "content" | "leads" | "analytics" | "profile" | "applications";
+
+interface MMApplication {
+  id: string;
+  city_id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  license_number: string | null;
+  license_state: string | null;
+  brokerage_name: string | null;
+  years_experience: number | null;
+  why_market_mayor: string | null;
+  local_expertise: string | null;
+  content_vision: string | null;
+  social_instagram: string | null;
+  social_linkedin: string | null;
+  social_youtube: string | null;
+  social_tiktok: string | null;
+  website_url: string | null;
+  video_intro_url: string | null;
+  referral_source: string | null;
+  status: string;
+  admin_score: number | null;
+  admin_notes: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+  cities: { name: string; slug: string; mm_tier: string | null; mm_price_monthly: number | null } | null;
+}
 
 interface ContentRecord {
   id: string;
@@ -137,8 +165,13 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<MMProfile | null>(null);
   const [content, setContent] = useState<ContentRecord[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [applications, setApplications] = useState<MMApplication[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [expandedApp, setExpandedApp] = useState<string | null>(null);
+  const [scoreInput, setScoreInput] = useState<Record<string, string>>({});
+  const [notesInput, setNotesInput] = useState<Record<string, string>>({});
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -199,6 +232,16 @@ export default function Dashboard() {
         .order("created_at", { ascending: false });
 
       setLeads(leadsData || []);
+
+      // Check if admin (email-based for now)
+      const adminEmails = ["anthony@livin.in", "anthonydazet@gmail.com"];
+      if (adminEmails.includes(profileData.email)) {
+        setIsAdmin(true);
+        // Load applications
+        const appsRes = await fetch("/api/claim/applications");
+        const appsData = await appsRes.json();
+        setApplications(appsData.applications || []);
+      }
     }
 
     setLoading(false);
@@ -338,6 +381,7 @@ export default function Dashboard() {
               { key: "leads", label: "Leads", icon: "👤", badge: newLeads.length || undefined },
               { key: "analytics", label: "Analytics", icon: "📈" },
               { key: "profile", label: "Profile", icon: "⚙️" },
+              ...(isAdmin ? [{ key: "applications" as Tab, label: "Apps", icon: "📋", badge: applications.filter(a => a.status === "pending").length || undefined }] : []),
             ] as { key: Tab; label: string; icon: string; badge?: number }[]
           ).map((item) => (
             <button
@@ -732,6 +776,281 @@ export default function Dashboard() {
               <div style={{ ...cardStyle, marginTop: 24, textAlign: "center", padding: 48, color: TEXT_DIM }}>
                 Full analytics with page views, engagement, and SEO performance coming in Phase 2 — once Google Search Console and analytics tracking are connected.
               </div>
+            </>
+          )}
+
+          {/* ════════ APPLICATIONS (Admin) ════════ */}
+          {tab === "applications" && isAdmin && (
+            <>
+              <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>
+                MM Applications
+                <span style={{ fontSize: 14, fontWeight: 400, color: TEXT_DIM, marginLeft: 12 }}>
+                  {applications.length} total
+                </span>
+              </h1>
+
+              {applications.length === 0 ? (
+                <div style={{ ...cardStyle, textAlign: "center", padding: 48, color: TEXT_DIM }}>
+                  No applications yet.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {applications.map((app) => {
+                    const isExpanded = expandedApp === app.id;
+                    const tierColors: Record<string, string> = { premium: "#d4a843", standard: "#94a3b8", small_market: "#cd7f32" };
+                    const tierIcons: Record<string, string> = { premium: "👑", standard: "⭐", small_market: "🏅" };
+                    const statusColors: Record<string, { bg: string; text: string }> = {
+                      pending: { bg: "rgba(245,158,11,0.15)", text: ORANGE },
+                      reviewing: { bg: "rgba(59,130,246,0.15)", text: BLUE },
+                      approved: { bg: "rgba(34,197,94,0.15)", text: GREEN },
+                      rejected: { bg: "rgba(239,68,68,0.1)", text: RED },
+                    };
+                    const sc = statusColors[app.status] || statusColors.pending;
+
+                    return (
+                      <div key={app.id} style={cardStyle}>
+                        {/* Header row */}
+                        <div
+                          onClick={() => setExpandedApp(isExpanded ? null : app.id)}
+                          style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}
+                        >
+                          <div style={{ flex: 1, minWidth: 200 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                              <span style={{ fontSize: 18, fontWeight: 700 }}>{app.full_name}</span>
+                              <span style={{ padding: "3px 8px", borderRadius: 4, fontSize: 10, fontWeight: 600, textTransform: "uppercase", background: sc.bg, color: sc.text }}>
+                                {app.status}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 13, color: TEXT_DIM }}>
+                              {app.cities?.name || "Unknown City"}
+                              {app.cities?.mm_tier && (
+                                <span style={{ marginLeft: 8, color: tierColors[app.cities.mm_tier] || TEXT_DIM }}>
+                                  {tierIcons[app.cities.mm_tier] || ""} {app.cities.mm_tier}
+                                </span>
+                              )}
+                              <span style={{ marginLeft: 12 }}>{app.email}</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: TEXT_DIM, marginTop: 4 }}>
+                              Applied {new Date(app.created_at).toLocaleDateString()} · {app.years_experience ? `${app.years_experience}yr exp` : "No exp listed"}
+                              {app.license_number && ` · Lic: ${app.license_number} (${app.license_state})`}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            {app.admin_score !== null && (
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ fontSize: 28, fontWeight: 700, color: app.admin_score >= 8 ? GREEN : app.admin_score >= 5 ? ORANGE : RED }}>
+                                  {app.admin_score}
+                                </div>
+                                <div style={{ fontSize: 10, color: TEXT_DIM }}>score</div>
+                              </div>
+                            )}
+                            <span style={{ color: TEXT_DIM, fontSize: 18 }}>{isExpanded ? "▲" : "▼"}</span>
+                          </div>
+                        </div>
+
+                        {/* Expanded detail */}
+                        {isExpanded && (
+                          <div style={{ marginTop: 20, borderTop: `1px solid ${BORDER}`, paddingTop: 20 }}>
+                            <div className="lv-grid-2" style={{ gap: 16, marginBottom: 20 }}>
+                              {/* Essay: Why MM */}
+                              {app.why_market_mayor && (
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: GOLD, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                                    Why Market Mayor
+                                  </div>
+                                  <div style={{ fontSize: 13, color: TEXT, lineHeight: 1.6, background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: 12 }}>
+                                    {app.why_market_mayor}
+                                  </div>
+                                </div>
+                              )}
+                              {/* Essay: Local Expertise */}
+                              {app.local_expertise && (
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: GOLD, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                                    Local Expertise
+                                  </div>
+                                  <div style={{ fontSize: 13, color: TEXT, lineHeight: 1.6, background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: 12 }}>
+                                    {app.local_expertise}
+                                  </div>
+                                </div>
+                              )}
+                              {/* Essay: Content Vision */}
+                              {app.content_vision && (
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: GOLD, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                                    Content Vision
+                                  </div>
+                                  <div style={{ fontSize: 13, color: TEXT, lineHeight: 1.6, background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: 12 }}>
+                                    {app.content_vision}
+                                  </div>
+                                </div>
+                              )}
+                              {/* Social & Links */}
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: GOLD, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                                  Social & Links
+                                </div>
+                                <div style={{ fontSize: 13, color: TEXT, lineHeight: 2 }}>
+                                  {app.social_instagram && <div>📸 {app.social_instagram}</div>}
+                                  {app.social_linkedin && <div>💼 {app.social_linkedin}</div>}
+                                  {app.social_youtube && <div>🎬 {app.social_youtube}</div>}
+                                  {app.social_tiktok && <div>🎵 {app.social_tiktok}</div>}
+                                  {app.website_url && <div>🌐 {app.website_url}</div>}
+                                  {app.video_intro_url && <div>🎥 <a href={app.video_intro_url} target="_blank" rel="noopener noreferrer" style={{ color: BLUE, textDecoration: "underline" }}>Video Intro</a></div>}
+                                  {app.referral_source && <div style={{ color: TEXT_DIM }}>Referral: {app.referral_source}</div>}
+                                  {app.brokerage_name && <div style={{ color: TEXT_DIM }}>Brokerage: {app.brokerage_name}</div>}
+                                  {app.phone && <div style={{ color: TEXT_DIM }}>Phone: {app.phone}</div>}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Admin scoring */}
+                            <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 16 }}>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: GOLD, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
+                                Admin Review
+                              </div>
+                              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+                                <div style={{ flex: "0 0 80px" }}>
+                                  <label style={{ display: "block", fontSize: 11, color: TEXT_DIM, marginBottom: 4 }}>Score (1-10)</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    value={scoreInput[app.id] ?? (app.admin_score !== null ? String(app.admin_score) : "")}
+                                    onChange={(e) => setScoreInput(prev => ({ ...prev, [app.id]: e.target.value }))}
+                                    style={{
+                                      width: "100%",
+                                      padding: "8px 10px",
+                                      background: "rgba(255,255,255,0.06)",
+                                      border: `1px solid ${BORDER}`,
+                                      borderRadius: 6,
+                                      color: "#fff",
+                                      fontSize: 16,
+                                      outline: "none",
+                                    }}
+                                  />
+                                </div>
+                                <div style={{ flex: 1, minWidth: 200 }}>
+                                  <label style={{ display: "block", fontSize: 11, color: TEXT_DIM, marginBottom: 4 }}>Notes</label>
+                                  <input
+                                    type="text"
+                                    value={notesInput[app.id] ?? (app.admin_notes || "")}
+                                    onChange={(e) => setNotesInput(prev => ({ ...prev, [app.id]: e.target.value }))}
+                                    placeholder="Internal notes..."
+                                    style={{
+                                      width: "100%",
+                                      padding: "8px 10px",
+                                      background: "rgba(255,255,255,0.06)",
+                                      border: `1px solid ${BORDER}`,
+                                      borderRadius: 6,
+                                      color: "#fff",
+                                      fontSize: 16,
+                                      outline: "none",
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                                <button
+                                  onClick={async () => {
+                                    setActionLoading(app.id);
+                                    await fetch("/api/claim/applications", {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        id: app.id,
+                                        admin_score: scoreInput[app.id] ? parseInt(scoreInput[app.id]) : app.admin_score,
+                                        admin_notes: notesInput[app.id] ?? app.admin_notes,
+                                      }),
+                                    });
+                                    await loadData();
+                                    setActionLoading(null);
+                                  }}
+                                  disabled={actionLoading === app.id}
+                                  style={{
+                                    padding: "8px 16px",
+                                    minHeight: 44,
+                                    background: "rgba(255,255,255,0.06)",
+                                    border: `1px solid ${BORDER}`,
+                                    borderRadius: 6,
+                                    color: TEXT,
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Save Score
+                                </button>
+                                {app.status !== "approved" && (
+                                  <button
+                                    onClick={async () => {
+                                      setActionLoading(app.id);
+                                      await fetch("/api/claim/applications", {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                          id: app.id,
+                                          status: "approved",
+                                          admin_score: scoreInput[app.id] ? parseInt(scoreInput[app.id]) : app.admin_score,
+                                          admin_notes: notesInput[app.id] ?? app.admin_notes,
+                                        }),
+                                      });
+                                      await loadData();
+                                      setActionLoading(null);
+                                    }}
+                                    disabled={actionLoading === app.id}
+                                    style={{
+                                      padding: "8px 16px",
+                                      minHeight: 44,
+                                      background: "rgba(34,197,94,0.15)",
+                                      border: "1px solid rgba(34,197,94,0.3)",
+                                      borderRadius: 6,
+                                      color: GREEN,
+                                      fontSize: 13,
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    {actionLoading === app.id ? "..." : "✓ Approve"}
+                                  </button>
+                                )}
+                                {app.status !== "rejected" && (
+                                  <button
+                                    onClick={async () => {
+                                      setActionLoading(app.id);
+                                      await fetch("/api/claim/applications", {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ id: app.id, status: "rejected" }),
+                                      });
+                                      await loadData();
+                                      setActionLoading(null);
+                                    }}
+                                    disabled={actionLoading === app.id}
+                                    style={{
+                                      padding: "8px 16px",
+                                      minHeight: 44,
+                                      background: "rgba(239,68,68,0.1)",
+                                      border: "1px solid rgba(239,68,68,0.2)",
+                                      borderRadius: 6,
+                                      color: RED,
+                                      fontSize: 13,
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    ✗ Reject
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
 

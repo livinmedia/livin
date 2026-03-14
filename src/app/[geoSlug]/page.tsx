@@ -76,6 +76,7 @@ export default async function CityPage({ params }: Props) {
   if (!city) notFound()
 
   const stateAbbr = city.state?.abbreviation?.toUpperCase() || ''
+  const cityHeroUrl = (city.metadata as Record<string, unknown>)?.hero_image_url as string | undefined
 
   // Fetch all city data in parallel
   const [articlesRes, mmRes, mvpsRes] = await Promise.all([
@@ -171,17 +172,17 @@ export default async function CityPage({ params }: Props) {
         padding: 'clamp(40px, 5vw, 64px) 0 clamp(32px, 4vw, 48px)',
       }}>
         {/* Hero background image or gradient fallback */}
-        {(city.metadata as any)?.hero_image_url ? (
+        {cityHeroUrl ? (
           <>
             <div style={{
               position: 'absolute', inset: 0,
-              backgroundImage: `url(${(city.metadata as any).hero_image_url})`,
+              backgroundImage: `url(${cityHeroUrl})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center 30%',
             }} />
             <div style={{
               position: 'absolute', inset: 0,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.92) 60%, rgba(255,255,255,0.98) 100%)',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0.95) 100%)',
             }} />
           </>
         ) : (
