@@ -128,14 +128,15 @@ export default async function CityPage({ params }: Props) {
   const featuredMvps = mvps.filter(m => m.ad_tier === 'premium' || m.ad_tier === 'category_exclusive' || m.ad_tier === 'featured')
   const standardMvps = mvps.filter(m => m.ad_tier === 'basic')
 
-  // Hot topics — derive from latest articles or use defaults
+  // Hot topics — short punchy discovery hooks
+  const foodArticle = articles.find(a => a.category === 'food' || a.content_type === 'vendor_feature')
   const hotTopics = [
     {
       icon: '★',
       iconStyle: 'linear-gradient(135deg, #FFF5ED, #FFECD2)',
       iconColor: '#E85D2A',
       label: 'Hot topic',
-      value: articles[0]?.title?.slice(0, 30) || `What's trending in ${city.name}`,
+      value: articles[0]?.category?.replace(/_/g, ' ') || 'Trending now',
       href: articles[0] ? `/${geoSlug}/${articles[0].slug}` : '#',
     },
     {
@@ -143,7 +144,7 @@ export default async function CityPage({ params }: Props) {
       iconStyle: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)',
       iconColor: '#2D7DD2',
       label: 'Hot homes',
-      value: `New listings in ${city.name}`,
+      value: `New listings`,
       href: '#homes',
     },
     {
@@ -151,10 +152,8 @@ export default async function CityPage({ params }: Props) {
       iconStyle: 'linear-gradient(135deg, #ECFDF5, #D1FAE5)',
       iconColor: '#22C580',
       label: 'Hot eats',
-      value: articles.find(a => a.category === 'food' || a.content_type === 'article')?.title?.slice(0, 28) || `Best restaurants in ${city.name}`,
-      href: articles.find(a => a.category === 'food')
-        ? `/${geoSlug}/${articles.find(a => a.category === 'food')!.slug}`
-        : '#',
+      value: `Best restaurants`,
+      href: foodArticle ? `/${geoSlug}/${foodArticle.slug}` : '#',
     },
   ]
 
