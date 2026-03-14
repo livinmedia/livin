@@ -217,17 +217,41 @@ export function QuickAction({ label, bg, border, color }: {
 }
 
 // ── Dashboard Layout Shell ──
-export function DashboardShell({ role, cityName, userName, children }: {
-  role: 'admin' | 'mm' | 'mvp'; cityName?: string; userName: string; children: React.ReactNode
+export function DashboardShell({ role, cityName, userName, activeTab, children }: {
+  role: 'admin' | 'mm' | 'mvp'; cityName?: string; userName: string; activeTab?: string; children: React.ReactNode
 }) {
   const titles = { admin: 'Admin Control Panel', mm: 'Market Mayor Dashboard', mvp: 'Partner Dashboard' }
   const initials = userName.split(' ').map(n => n[0]).join('').slice(0, 2)
 
-  const navItems = role === 'admin'
-    ? ['Overview', 'Cities', 'Content', 'Leads', 'Partners', 'Agents', 'Community', 'Settings']
-    : role === 'mm'
-    ? ['Overview', 'Content', 'Leads', 'Partners', 'Community', 'Profile']
-    : ['Overview', 'Performance', 'Leads', 'Community', 'Profile']
+  const basePath = `/dashboard/${role}`
+  const adminTabs = [
+    { label: 'Overview', path: '' },
+    { label: 'Cities', path: '/cities' },
+    { label: 'Content', path: '/content' },
+    { label: 'Leads', path: '/leads' },
+    { label: 'Partners', path: '/partners' },
+    { label: 'Agents', path: '/agents' },
+    { label: 'Community', path: '/community' },
+    { label: 'Settings', path: '/settings' },
+  ]
+  const mmTabs = [
+    { label: 'Overview', path: '' },
+    { label: 'Content', path: '/content' },
+    { label: 'Leads', path: '/leads' },
+    { label: 'Partners', path: '/partners' },
+    { label: 'Community', path: '/community' },
+    { label: 'Profile', path: '/profile' },
+  ]
+  const mvpTabs = [
+    { label: 'Overview', path: '' },
+    { label: 'Performance', path: '/performance' },
+    { label: 'Leads', path: '/leads' },
+    { label: 'Community', path: '/community' },
+    { label: 'Profile', path: '/profile' },
+  ]
+
+  const tabs = role === 'admin' ? adminTabs : role === 'mm' ? mmTabs : mvpTabs
+  const current = activeTab || 'Overview'
 
   return (
     <div style={{
@@ -241,7 +265,7 @@ export function DashboardShell({ role, cityName, userName, children }: {
         borderBottom: '1px solid #EEEAE4', position: 'sticky', top: 0, zIndex: 50,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ fontFamily: "'Libre Caslon Display', serif", fontSize: '22px', color: '#1a1a1a' }}>LIVIN</span>
+          <a href="/" style={{ fontFamily: "'Libre Caslon Display', serif", fontSize: '22px', color: '#1a1a1a', textDecoration: 'none' }}>LIVIN</a>
           <span style={{ fontSize: '13px', fontWeight: 400, color: '#999' }}>{titles[role]}</span>
           {cityName && (
             <span style={{
@@ -266,18 +290,25 @@ export function DashboardShell({ role, cityName, userName, children }: {
         </div>
       </div>
 
-      {/* Sub nav */}
+      {/* Sub nav — real links */}
       <div style={{
         display: 'flex', gap: '4px', padding: '8px 24px',
         background: '#fff', borderBottom: '1px solid #EEEAE4',
       }}>
-        {navItems.map((item, i) => (
-          <span key={item} style={{
-            padding: '6px 16px', borderRadius: '100px',
-            fontSize: '12px', fontWeight: 500, cursor: 'pointer',
-            background: i === 0 ? '#1a1a1a' : 'transparent',
-            color: i === 0 ? '#fff' : '#999',
-          }}>{item}</span>
+        {tabs.map(tab => {
+          const isActive = tab.label === current
+          return (
+            <a key={tab.label} href={`${basePath}${tab.path}`} style={{
+              padding: '6px 16px', borderRadius: '100px',
+              fontSize: '12px', fontWeight: 500, cursor: 'pointer',
+              background: isActive ? '#1a1a1a' : 'transparent',
+              color: isActive ? '#fff' : '#999',
+              textDecoration: 'none',
+              transition: 'background 0.2s, color 0.2s',
+            }}>{tab.label}</a>
+          )
+        })}
+      </div>
         ))}
       </div>
 

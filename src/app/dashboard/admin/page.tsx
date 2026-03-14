@@ -100,7 +100,7 @@ export default function AdminDashboard() {
   ))
 
   return (
-    <DashboardShell role="admin" userName={profile?.full_name || 'Admin'}>
+    <DashboardShell role="admin" userName={profile?.full_name || 'Admin'} activeTab="Overview">
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '18px' }}>
         <StatCard label="Active cities" value={cities.length} change={`${citiesWithMM} with MMs`} changeColor="#E85D2A" icon="★" iconBg="#FFF5ED" iconColor="#E85D2A" />
