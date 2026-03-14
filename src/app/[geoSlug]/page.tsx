@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 
-export const revalidate = 0
+export const revalidate = 3600
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -453,8 +453,6 @@ export default async function CityPage({ params }: Props) {
               display: 'grid',
               gridTemplateColumns: marketMayors.length > 1 ? 'repeat(2, 1fr)' : '1fr',
               gap: '14px',
-              maxWidth: marketMayors.length === 1 ? '620px' : undefined,
-              margin: marketMayors.length === 1 ? '0 auto' : undefined,
             }}>
               {marketMayors.map(mm => {
                 const profile = mmProfiles[mm.id]
