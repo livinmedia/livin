@@ -342,9 +342,10 @@ export default async function CityPage({ params }: Props) {
           {listings.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
               {listings.map((home: any, i: number) => (
-                <div key={home.id} style={{
+                <a key={home.id} href={`/${geoSlug}/listing/${home.id}`} style={{
                   background: '#fff', borderRadius: 'var(--radius)', overflow: 'hidden',
                   border: '1px solid var(--lv-border)', transition: 'transform 0.25s',
+                  textDecoration: 'none', color: 'inherit', display: 'block',
                 }}>
                   <div style={{
                     height: '160px',
@@ -392,7 +393,7 @@ export default async function CityPage({ params }: Props) {
                       </div>
                     )}
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           ) : (
