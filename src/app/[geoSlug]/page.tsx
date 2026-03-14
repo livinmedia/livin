@@ -231,7 +231,7 @@ export default async function CityPage({ params }: Props) {
 
           {/* Hot topics row */}
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px',
+            display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px',
           }}>
             {hotTopics.map((topic, i) => (
               <a key={i} href={topic.href} style={{
